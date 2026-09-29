@@ -1,0 +1,15 @@
+# Personal data — never commit
+private/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+
+# Claude Code local files
+.claude/settings.local.json
+CLAUDE.local.md
