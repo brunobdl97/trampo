@@ -7,8 +7,8 @@ What the product does is in [product.md](product.md); domain terms are in [CONTE
 A Run is a deterministic pipeline in code; Claude is called only at specific steps (Discovery, judging, Tailored resumes, cover letters) — see [ADR 0001](adr/0001-deterministic-pipeline-not-agent-loop.md).
 
 ```
-Discovery ─► collect Postings ─► pre-filter ─► judge (Batch) ─► dedupe ─► store ─► Digest
-                                                                            └─► Tailored resumes (Batch)
+Discovery ─► collect Postings ─► pre-filter ─► dedupe into Jobs ─► judge (Batch) ─► Digest
+                                                                                  └─► Tailored resumes (Batch)
 ```
 
 Everything runs locally on the Candidate's PC (WSL2).
@@ -49,24 +49,28 @@ Everything else comes from the standard library (`sqlite3`, `tomllib`, `argparse
 ## Layout
 
 ```
-config.toml                # public: Tracks, keywords, eligibility rules, thresholds, schedule
+config.toml                # public: Tracks, keywords, thresholds
 src/trampo/
   cli.py                   # argparse entry point: run | serve | resume | eval
+  config.py                # Config, Profile, Paths
+  models.py                # domain types shared by every module
+  store.py  schema.sql     # all SQL
   ats/                     # Greenhouse, Lever, Ashby clients behind one Protocol
-  discovery.py
-  judge.py
-  dedup.py
-  resume.py                # Tailored resume + HTML → PDF
-  digest.py                # Telegram
-  store.py                 # all SQL
-  schema.sql
+  prefilter.py  dedup.py
+  claude.py                # client, newest Opus, prompts, batches
+  judge.py  discovery.py  digest.py
+  pipeline.py              # one Run end to end
+  resume/                  # model, HTML → PDF rendering, Tailored resume
   web/                     # FastAPI app, templates/, static/
+  backup.py  evaluate.py
   prompts/                 # *.md prompt files
 tests/
   fixtures/                # recorded ATS / Claude / Telegram responses
 private/                   # gitignored — see below
 private.example/           # same shape, fictional Candidate
 ```
+
+The file-by-file map and the build order are in [backlog.md](../backlog.md).
 
 One module per feature. A `Protocol` exists only where there is more than one implementation (the ATS clients).
 

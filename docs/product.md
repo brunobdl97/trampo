@@ -72,10 +72,10 @@ Every Job is assigned to one Track. The Fit score is relative to that Track, and
    - Lever: `https://api.lever.co/v0/postings/{slug}?mode=json`
    - Ashby: `https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true`
 3. **Pre-filter (code)** — drop what is objective: publish date, title keywords, and structured location/workplace fields when the ATS provides them.
-4. **Judge (Claude)** — for the remaining Jobs, the latest Claude Opus reads the full description and returns structured output: Track, Verdict + reason, remote?, open to Brazil/LATAM?, requires US work authorization?, and a Fit score (0–10) with a short justification.
-5. **Dedupe** — two Postings belong to the same Job when:
+4. **Dedupe** — group Postings into Jobs before judging, so each Job is judged once. Two Postings belong to the same Job when:
    - they share ATS + posting ID; or
    - they share company + normalized title. Postings of one Job in several locations become a single Job with a list of locations. A Repost (new ID within 30 days) keeps the Job's Status and notes.
+5. **Judge (Claude)** — for new Jobs, the latest Claude Opus reads the full description and returns structured output: Track, Verdict + reason, remote?, open to Brazil/LATAM?, requires US work authorization?, and a Fit score (0–10) with a short justification.
 6. **Output** — store results, refresh the page, send the Digest.
 7. **Tailored resume** — written to `private/resumes/<company>-<title>.pdf`:
    - **automatically** for new `eligible` Jobs with Fit score ≥ 8 (adjustable); `needs_review` Jobs never get one automatically;
