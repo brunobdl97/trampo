@@ -35,6 +35,25 @@ def test_run_without_credentials_fails_fast(
     assert not (tmp_path / "private").exists()  # nothing built: no logs dir, no DB
 
 
+def test_resume_base_writes_pdf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    private_dir = tmp_path / "private"
+    shutil.copytree("private.example", private_dir)
+    monkeypatch.setenv("TRAMPO_PRIVATE_DIR", str(private_dir))
+
+    assert main(["resume", "--base"]) == 0
+
+    assert (private_dir / "resumes" / "base-en.pdf").read_bytes().startswith(b"%PDF")
+
+
+def test_resume_without_base_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("TRAMPO_PRIVATE_DIR", str(tmp_path / "private"))
+
+    assert main(["resume"]) == 2
+    assert "--base" in capsys.readouterr().err
+
+
 def test_run_setup_failure_alerts_and_exits_1(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:

@@ -16,6 +16,8 @@ from trampo.claude import make_client
 from trampo.config import Paths, load_config, load_profile, private_paths
 from trampo.digest import Telegram, format_failure
 from trampo.pipeline import RunContext, run, send_alert
+from trampo.resume import load_resume
+from trampo.resume.render import html_to_pdf, render_html
 from trampo.store import Store
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"trampo {version('trampo')}")
     commands = parser.add_subparsers(dest="command")
     commands.add_parser("run", help="one daily Run: collect, judge, send the Digest")
+    resume_parser = commands.add_parser("resume", help="render a resume to PDF")
+    resume_parser.add_argument("--base", action="store_true", help="render the Base resume")
+    resume_parser.add_argument("--lang", choices=["en", "pt"], default="en")
     return parser
 
 
@@ -93,11 +98,27 @@ def _run() -> int:
     return 0
 
 
+def _resume(args: argparse.Namespace) -> int:
+    if not args.base:
+        print("trampo resume: use --base (tailored resumes: Task 16)", file=sys.stderr)
+        return 2
+
+    paths = private_paths()
+    resume = load_resume(paths.resume_json)
+    html = render_html(resume, args.lang)
+    out = paths.resumes_dir / f"base-{args.lang}.pdf"
+    html_to_pdf(html, out)
+    print(out)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "run":
         return _run()
+    if args.command == "resume":
+        return _resume(args)
     parser.print_help()
     return 1
 

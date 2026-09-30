@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<title>{{ resume.basics.name }}</title>
+<style>
+  @page { size: A4; margin: 1.8cm; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #111111; font-size: 11pt; line-height: 1.4; }
+  h1 { font-size: 20pt; margin: 0 0 2px; }
+  h2 { font-size: 13pt; margin: 16px 0 6px; border-bottom: 1px solid #cccccc; padding-bottom: 2px; break-after: avoid; page-break-after: avoid; }
+  p { margin: 0 0 6px; }
+  .label { font-size: 12pt; color: #333333; margin: 0 0 6px; }
+  .contact { font-size: 10pt; color: #333333; margin: 0 0 4px; }
+  .contact a { color: #333333; }
+  ul { margin: 4px 0 8px; padding-left: 18px; }
+  li { margin: 2px 0; break-inside: avoid; page-break-inside: avoid; }
+  .entry { margin-bottom: 10px; break-inside: avoid; page-break-inside: avoid; }
+  .entry-title { font-weight: bold; }
+  .entry-meta { font-style: italic; color: #333333; font-size: 10pt; }
+</style>
+</head>
+<body>
+  <h1>{{ resume.basics.name }}</h1>
+  <p class="label">{{ resume.basics.label }}</p>
+  <p class="contact">
+    {%- for item in contact_items -%}
+      {%- if not loop.first %} &middot; {% endif -%}
+      {%- if item.url %}<a href="{{ item.url }}">{{ item.text }}</a>{% else %}{{ item.text }}{% endif -%}
+    {%- endfor -%}
+  </p>
+
+  {% if resume.basics.summary %}
+  <h2>{{ headings.summary }}</h2>
+  <p>{{ resume.basics.summary }}</p>
+  {% endif %}
+
+  {% if resume.work %}
+  <h2>{{ headings.experience }}</h2>
+  {% for work in resume.work %}
+  <div class="entry">
+    <p class="entry-title">{{ work.position }} &middot; {{ work.name }}</p>
+    <p class="entry-meta">{{ work.startDate }} &ndash; {{ work.endDate or present }}</p>
+    {% if work.summary %}<p>{{ work.summary }}</p>{% endif %}
+    {% if work.highlights %}
+    <ul>
+      {% for highlight in work.highlights %}<li>{{ highlight }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if resume.projects %}
+  <h2>{{ headings.projects }}</h2>
+  {% for project in resume.projects %}
+  <div class="entry">
+    <p class="entry-title">{{ project.name }}</p>
+    <p>{{ project.description }}</p>
+    {% if project.highlights %}
+    <ul>
+      {% for highlight in project.highlights %}<li>{{ highlight }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if resume.education %}
+  <h2>{{ headings.education }}</h2>
+  {% for edu in resume.education %}
+  <div class="entry">
+    <p class="entry-title">{{ edu.studyType }}, {{ edu.area }} &middot; {{ edu.institution }}</p>
+    {% if edu.startDate %}<p class="entry-meta">{{ edu.startDate }} &ndash; {{ edu.endDate or present }}</p>{% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if resume.skills %}
+  <h2>{{ headings.skills }}</h2>
+  <ul>
+    {% for skill in resume.skills %}
+    <li>{{ skill.name }}{% if skill.keywords %}: {{ skill.keywords | join(", ") }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if resume.languages %}
+  <h2>{{ headings.languages }}</h2>
+  <ul>
+    {% for lang_item in resume.languages %}<li>{{ lang_item.language }} &mdash; {{ lang_item.fluency }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</body>
+</html>

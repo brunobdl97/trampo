@@ -668,15 +668,15 @@ The template is ATS-friendly: a single column, real text, no tables, no images, 
 
 CLI: `trampo resume --base [--lang en|pt]` writes `<private>/resumes/base-<lang>.pdf`.
 
-- [ ] Tests first:
+- [x] Tests first:
   - `test_html_has_every_work_entry`.
   - `test_pt_headings` — "Experiência", "Formação", "Habilidades".
   - `test_no_tables_or_images`.
   - `test_filename_slug` — accents stripped, lowercase, hyphens.
   - `test_pdf_written` — the file starts with `%PDF` (needs `playwright install chromium`).
-- [ ] Implement; register the `--base` option; green checks.
-- [ ] 👤 Generate `base-en.pdf` from the owner's `private/resume.json` and ask the owner to review the layout.
-- [ ] Commit `feat(resume): render resumes to PDF`.
+- [x] Implement; register the `--base` option; green checks.
+- [x] 👤 Generate `base-en.pdf` from the owner's `private/resume.json` and ask the owner to review the layout.
+- [x] Commit `feat(resume): render resumes to PDF`.
 
 ### Task 16: Tailored resume
 
