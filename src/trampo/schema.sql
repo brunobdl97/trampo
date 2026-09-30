@@ -26,7 +26,8 @@ CREATE TABLE runs (
   model_id TEXT, outcome TEXT, counts TEXT, error TEXT);          -- outcome: ok | failed; counts: JSON
 CREATE TABLE batches (
   id TEXT PRIMARY KEY, kind TEXT NOT NULL, run_id INTEGER NOT NULL,   -- kind: judge | resume
-  job_ids TEXT NOT NULL, submitted_at TEXT NOT NULL, collected_at TEXT);
+  job_ids TEXT NOT NULL, model_id TEXT NOT NULL, prompt_hash TEXT NOT NULL,  -- what it was submitted with
+  submitted_at TEXT NOT NULL, collected_at TEXT);
 CREATE TABLE discovery_searches (id INTEGER PRIMARY KEY, searched_on TEXT NOT NULL, query TEXT NOT NULL);
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 PRAGMA user_version = 1;

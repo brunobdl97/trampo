@@ -642,7 +642,7 @@ Tailored resumes (Task 16) and backup (Task 18) plug in after step 8.
 
 CLI: `trampo run` builds the context from the env (`ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) and `private_paths()`, and logs to `<private>/logs/YYYY-MM-DD.log` and stderr. On an unexpected exception: `finish_run(outcome="failed", error=...)`, `Telegram.send(format_failure(...))`, exit code 1.
 
-- [ ] Tests first (a temporary private dir; MockTransport for ATS, Anthropic and Telegram; `sleep` is a no-op):
+- [x] Tests first (a temporary private dir; MockTransport for ATS, Anthropic and Telegram; `sleep` is a no-op):
   - `test_happy_path_sends_digest` — fixture Boards → one eligible Job → one Digest containing it.
   - `test_second_run_is_quiet` — same data again → no new Jobs, no Digest.
   - `test_board_outage_does_not_close_postings` — Review Focus 1.
@@ -650,7 +650,7 @@ CLI: `trampo run` builds the context from the env (`ANTHROPIC_API_KEY`, `TELEGRA
   - `test_in_flight_batch_is_collected_not_resubmitted` — Review Focus 3.
   - `test_refusal_becomes_needs_review`.
   - `test_unexpected_error_marks_run_failed_and_alerts`.
-- [ ] Implement; register `run` in `cli.py`; green checks; commit `feat(pipeline): daily Run`.
+- [x] Implement; register `run` in `cli.py`; green checks; commit `feat(pipeline): daily Run`.
 
 ### Task 15: Resume rendering (HTML → PDF)
 

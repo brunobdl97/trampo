@@ -223,9 +223,17 @@ class Store:
             )
         return cur.rowcount
 
+    def pending_open_count(self) -> int:
+        """Jobs still waiting for a Verdict that are open on their ATS."""
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM jobs WHERE verdict = 'pending' AND closed_at IS NULL"
+        ).fetchone()
+        assert row is not None
+        return row["n"]
+
     def jobs_to_judge(self) -> list[JobWithPostings]:
         open_job_ids: set[int] = set()
-        for _, job_ids in self.open_batches("judge"):
+        for _, job_ids, _, _ in self.open_batches("judge"):
             open_job_ids.update(job_ids)
         rows = self._conn.execute(
             "SELECT id FROM jobs WHERE verdict = 'pending' AND closed_at IS NULL ORDER BY id"
@@ -257,11 +265,23 @@ class Store:
                 ),
             )
 
-    def set_verdict(self, job_id: int, verdict: VerdictValue, reason: str) -> None:
+    def set_verdict(
+        self,
+        job_id: int,
+        verdict: VerdictValue,
+        reason: str,
+        model_id: str | None = None,
+        prompt_hash: str | None = None,
+    ) -> None:
+        """Set a Verdict. A Verdict Claude caused (a refusal) passes its model
+        and prompt hash; a code-made one leaves the stored ones untouched."""
         with self._conn:
             self._conn.execute(
-                "UPDATE jobs SET verdict = ?, verdict_reason = ? WHERE id = ?",
-                (verdict, reason, job_id),
+                "UPDATE jobs SET verdict = ?, verdict_reason = ?, "
+                "judged_model_id = COALESCE(?, judged_model_id), "
+                "judged_prompt_hash = COALESCE(?, judged_prompt_hash) "
+                "WHERE id = ?",
+                (verdict, reason, model_id, prompt_hash, job_id),
             )
 
     def set_status(self, job_id: int, status: StatusValue) -> None:
@@ -392,22 +412,31 @@ class Store:
             )
 
     def add_batch(
-        self, batch_id: str, kind: str, run_id: int, job_ids: list[int], now: datetime
+        self,
+        batch_id: str,
+        kind: str,
+        run_id: int,
+        job_ids: list[int],
+        model_id: str,
+        prompt_hash: str,
+        now: datetime,
     ) -> None:
         with self._conn:
             self._conn.execute(
-                "INSERT INTO batches (id, kind, run_id, job_ids, submitted_at) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (batch_id, kind, run_id, json.dumps(job_ids), _to_iso(now)),
+                "INSERT INTO batches "
+                "(id, kind, run_id, job_ids, model_id, prompt_hash, submitted_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (batch_id, kind, run_id, json.dumps(job_ids), model_id, prompt_hash, _to_iso(now)),
             )
 
-    def open_batches(self, kind: str) -> list[tuple[str, list[int]]]:
+    def open_batches(self, kind: str) -> list[tuple[str, list[int], str, str]]:
+        """Uncollected batches as (batch id, job ids, model id, prompt hash), oldest first."""
         rows = self._conn.execute(
-            "SELECT id, job_ids FROM batches WHERE kind = ? AND collected_at IS NULL "
-            "ORDER BY submitted_at",
+            "SELECT id, job_ids, model_id, prompt_hash FROM batches "
+            "WHERE kind = ? AND collected_at IS NULL ORDER BY submitted_at",
             (kind,),
         ).fetchall()
-        return [(r["id"], json.loads(r["job_ids"])) for r in rows]
+        return [(r["id"], json.loads(r["job_ids"]), r["model_id"], r["prompt_hash"]) for r in rows]
 
     def mark_batch_collected(self, batch_id: str, now: datetime) -> None:
         with self._conn:

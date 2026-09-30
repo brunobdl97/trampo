@@ -172,7 +172,7 @@ def test_jobs_to_judge_skips_jobs_in_open_batches(db_path: Path) -> None:
     batched_job = store.create_job("Acme", "SRE", "sre", run_id, NOW)
     closed_job = store.create_job("Acme", "Data Engineer", "data engineer", run_id, NOW)
 
-    store.add_batch("batch-1", "judge", run_id, [batched_job], NOW)
+    store.add_batch("batch-1", "judge", run_id, [batched_job], "claude-opus-5", "abc123def456", NOW)
 
     # a closed job keeps verdict=pending but must not be sent to judging
     store.upsert_posting(_posting(board_slug="acme", posting_id="closed-1"), closed_job, NOW)
@@ -180,9 +180,12 @@ def test_jobs_to_judge_skips_jobs_in_open_batches(db_path: Path) -> None:
     store.close_jobs_without_open_postings(NOW)
 
     to_judge = {jwp.job.id for jwp in store.jobs_to_judge()}
+    open_batches = store.open_batches("judge")
     store.close()
 
     assert to_judge == {pending_job}
+    # a batch keeps the model and prompt it was submitted with (Task 14, Ruling R9)
+    assert open_batches == [("batch-1", [batched_job], "claude-opus-5", "abc123def456")]
 
 
 def test_override_records_from_and_to(db_path: Path) -> None:
