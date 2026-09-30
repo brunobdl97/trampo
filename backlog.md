@@ -368,7 +368,7 @@ class Store:
     def backup_to(self, dest: Path) -> None             # sqlite3 online backup API
 ```
 
-- [ ] Tests first, `tests/test_store.py` (a temporary DB file per test):
+- [x] Tests first, `tests/test_store.py` (a temporary DB file per test):
   - `test_schema_applied_once` — reopening the same file keeps data and `user_version == 1`.
   - `test_upsert_posting_keeps_first_seen` — a second upsert updates `last_seen_at` only.
   - `test_close_missing_postings_only_touches_that_board`.
@@ -379,8 +379,8 @@ class Store:
   - `test_list_jobs_filters` — by status, track and company.
   - `test_reject_closed_pending` — only closed `pending` Jobs become `rejected` with the given reason.
   - `test_backup_to_while_open` — the copy opens and holds the same rows.
-- [ ] Implement `models.py`, `schema.sql`, `store.py` (load the schema with `importlib.resources`; JSON columns via `json`).
-- [ ] Green checks, commit `feat(store): domain models and SQLite store`.
+- [x] Implement `models.py`, `schema.sql`, `store.py` (load the schema with `importlib.resources`; JSON columns via `json`).
+- [x] Green checks, commit `feat(store): domain models and SQLite store`.
 
 ### Task 5: ATS client protocol and Greenhouse
 
