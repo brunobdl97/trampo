@@ -123,12 +123,12 @@ testpaths = ["tests"]
 addopts = "-q"
 ```
 
-- [ ] `echo 3.14 > .python-version`; write `pyproject.toml`; `uv add anthropic httpx pydantic fastapi uvicorn jinja2 python-multipart playwright`; `uv add --dev pytest ruff pyright`.
-- [ ] Test first — `tests/test_cli.py::test_version`: `main(["--version"])` raises `SystemExit(0)` and prints `trampo 0.1.0`.
-- [ ] Implement `build_parser()` (argparse, `prog="trampo"`, `--version`, `add_subparsers(dest="command")`) and `main()`.
-- [ ] `.github/workflows/ci.yml`: on push and pull_request, ubuntu-latest, `actions/checkout` + `astral-sh/setup-uv` (current major versions — check their READMEs), then `uv sync --locked`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run pyright`, `uv run playwright install --with-deps chromium`, `uv run pytest`.
-- [ ] Confirm the `.claude/settings.json` ruff hook now formats edited `.py` files.
-- [ ] Green checks, commit `chore: scaffold project and CI`.
+- [x] `echo 3.14 > .python-version`; write `pyproject.toml`; `uv add anthropic httpx pydantic fastapi uvicorn jinja2 python-multipart playwright`; `uv add --dev pytest ruff pyright`.
+- [x] Test first — `tests/test_cli.py::test_version`: `main(["--version"])` raises `SystemExit(0)` and prints `trampo 0.1.0`.
+- [x] Implement `build_parser()` (argparse, `prog="trampo"`, `--version`, `add_subparsers(dest="command")`) and `main()`.
+- [x] `.github/workflows/ci.yml`: on push and pull_request, ubuntu-latest, `actions/checkout` + `astral-sh/setup-uv` (current major versions — check their READMEs), then `uv sync --locked`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run pyright`, `uv run playwright install --with-deps chromium`, `uv run pytest`.
+- [x] Confirm the `.claude/settings.json` ruff hook now formats edited `.py` files.
+- [x] Green checks, commit `chore: scaffold project and CI`.
 
 ### Task 2: Config, profile and private paths
 
