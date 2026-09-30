@@ -15,6 +15,7 @@ from typing import Any
 import httpx2
 import pytest
 
+from trampo import pipeline
 from trampo.ats import client_for
 from trampo.claude import load_prompt, make_client
 from trampo.config import load_config, load_profile, private_paths
@@ -670,3 +671,24 @@ def test_recovered_resume_never_overwrites_one_made_by_hand(ctx: RunContext, fak
     )
     assert tuple(stored) == (str(by_hand), "claude-opus-by-hand", "hand0000hash")
     assert not ctx.paths.resumes_dir.exists()  # nothing rendered over it
+
+
+def test_skipped_without_backup_dir(ctx: RunContext, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert ctx.profile.backup_dir is None  # private.example/profile.toml has dir = ""
+    calls: list[object] = []
+    monkeypatch.setattr(pipeline, "backup_private", lambda *args: calls.append(args))
+
+    pipeline._backup(ctx)
+
+    assert calls == []
+
+
+def test_failure_does_not_fail_run(ctx: RunContext, fakes: _Fakes, tmp_path: Path) -> None:
+    blocker = tmp_path / "not-a-dir"
+    blocker.write_text("x")
+    ctx.profile.backup_dir = blocker / "backup"  # mkdir under a regular file fails
+
+    summary = run(ctx)
+
+    outcome = _row(ctx, "SELECT outcome FROM runs WHERE id = ?", summary.run_id)["outcome"]
+    assert outcome == "ok"

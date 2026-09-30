@@ -19,6 +19,7 @@ import anthropic
 from anthropic.types import Message
 
 from trampo.ats import AtsClient, BoardNotFound
+from trampo.backup import backup_private
 from trampo.claude import (
     Prompt,
     SpendLimitReached,
@@ -136,6 +137,9 @@ def run(ctx: RunContext) -> RunSummary:
         summary.pending = ctx.store.pending_open_count()
         ctx.store.finish_run(summary.run_id, ctx.now(), "ok", _counts(summary), None, model)
         logger.info("Run %d finished: %s", summary.run_id, _counts(summary))
+
+        # 10. Backup: best-effort, never changes the Run's outcome.
+        _backup(ctx)
         return summary
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
@@ -361,3 +365,14 @@ def _tally(summary: RunSummary, judged: dict[int, VerdictValue]) -> None:
 
 def _counts(summary: RunSummary) -> dict[str, int]:
     return {k: v for k, v in asdict(summary).items() if k != "run_id"}
+
+
+def _backup(ctx: RunContext) -> None:
+    """Best-effort: skipped silently with no backup_dir; any failure is
+    logged and never fails the Run."""
+    if ctx.profile.backup_dir is None:
+        return
+    try:
+        backup_private(ctx.paths, ctx.store, ctx.profile.backup_dir)
+    except Exception:
+        logger.exception("Backup failed")

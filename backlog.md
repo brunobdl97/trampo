@@ -751,8 +751,8 @@ Vendor pinned versions of htmx and Pico.css into `static/` (both permissively li
 
 **Produces:** `def backup_private(paths: Paths, store: Store, dest: Path) -> None` — copies every file in the private dir except the database (`shutil.copytree`, `dirs_exist_ok=True`) and writes the database with `store.backup_to(dest / "trampo.db")`. Called at the end of each Run when `profile.backup_dir` is set. A backup failure is logged and never fails the Run.
 
-- [ ] Tests first: `test_copies_files_and_db`, `test_db_copy_readable_while_open`, `test_skipped_without_backup_dir`, `test_failure_does_not_fail_run`.
-- [ ] Implement; green checks; commit `feat(backup): copy private data after each Run`.
+- [x] Tests first: `test_copies_files_and_db`, `test_db_copy_readable_while_open`, `test_skipped_without_backup_dir`, `test_failure_does_not_fail_run`.
+- [x] Implement; green checks; commit `feat(backup): copy private data after each Run`.
 
 ### Task 19: Eval (`trampo eval`)
 
