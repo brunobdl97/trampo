@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-import httpx
+import httpx2
 
 from trampo.ats import BoardNotFound
 from trampo.models import Ats, Posting, Salary, Workplace
@@ -49,7 +49,7 @@ def _salary(compensation: dict[str, Any] | None) -> Salary | None:
 class AshbyClient:
     ats: Ats = "ashby"
 
-    def __init__(self, http: httpx.Client) -> None:
+    def __init__(self, http: httpx2.Client) -> None:
         self._http = http
 
     def fetch_postings(self, slug: str, company: str) -> list[Posting]:

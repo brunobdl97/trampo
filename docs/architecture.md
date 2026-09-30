@@ -21,9 +21,9 @@ Everything runs locally on the Candidate's PC (WSL2).
 | Env, deps, lockfile, runner | uv |
 | Lint + format | ruff |
 | Types | pyright (same engine as VS Code's Pylance) |
-| Tests | pytest + `httpx.MockTransport` |
+| Tests | pytest + `httpx2.MockTransport` |
 | Claude | `anthropic` SDK |
-| HTTP (ATS, Telegram) | `httpx` |
+| HTTP (ATS, Telegram) | `httpx2` |
 | Data models | Pydantic (config, Base resume, Claude structured output) |
 | Web | FastAPI + Jinja2 + uvicorn, htmx + Pico.css vendored as static files |
 | PDF (and phase-2 Assisted apply) | Playwright + Chromium |
@@ -36,7 +36,7 @@ Everything runs locally on the Candidate's PC (WSL2).
 | Package | Why |
 | --- | --- |
 | `anthropic` | Models API, Batches, web search, structured output |
-| `httpx` | ATS clients, Telegram (already an `anthropic` dependency; declared because we import it) |
+| `httpx2` | ATS clients, Telegram (the HTTP library `anthropic` 1.x is built on; declared because we import it) |
 | `pydantic` | config, Base resume, Claude output (same) |
 | `fastapi`, `uvicorn` | web page server |
 | `jinja2` | page and resume templates |
@@ -137,7 +137,7 @@ private/                   # gitignored
 ## Testing
 
 - pytest; TDD.
-- All HTTP (ATS clients, Telegram, and the Anthropic SDK, which uses httpx) goes through `httpx.MockTransport` serving real recorded responses from `tests/fixtures/`.
+- All HTTP (ATS clients, Telegram, and the Anthropic SDK, which uses httpx2) goes through `httpx2.MockTransport` serving real recorded responses from `tests/fixtures/`.
 - Tests never call real APIs. Prompt quality is measured with `trampo eval`, not unit tests.
 - CI (GitHub Actions) runs ruff, pyright and pytest on every push and pull request.
 

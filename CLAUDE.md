@@ -26,7 +26,7 @@ ruff format + fix runs automatically on every edited `.py` file (hook in `.claud
 
 - Never commit, print or paste the contents of `private/` (Base resume, contact data, Salary floor, DB, generated resumes, `.env`). Examples go in `private.example/` with fictional data.
 - Tailored resumes and cover letters never contain facts absent from the Base resume.
-- Tests never call real APIs: use `httpx.MockTransport` with recorded responses in `tests/fixtures/`.
+- Tests never call real APIs: use `httpx2.MockTransport` with recorded responses in `tests/fixtures/`.
 - Claude API: resolve the newest Opus at runtime via the Models API and use only features stable across Opus versions (adaptive thinking, `output_config.format` structured output, no prefill, no forced `tool_choice`). Load the `claude-api` skill, when available, before touching Claude calls.
 - Store the model ID and prompt hash on every Verdict and Tailored resume.
 - No new dependency without the owner's approval; the approved list is in docs/architecture.md.

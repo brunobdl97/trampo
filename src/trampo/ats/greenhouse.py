@@ -4,7 +4,7 @@ import html
 from datetime import UTC, datetime
 from typing import Any
 
-import httpx
+import httpx2
 
 from trampo.ats import BoardNotFound, html_to_text
 from trampo.models import Ats, Posting
@@ -15,7 +15,7 @@ _BASE_URL = "https://boards-api.greenhouse.io"
 class GreenhouseClient:
     ats: Ats = "greenhouse"
 
-    def __init__(self, http: httpx.Client) -> None:
+    def __init__(self, http: httpx2.Client) -> None:
         self._http = http
 
     def fetch_postings(self, slug: str, company: str) -> list[Posting]:

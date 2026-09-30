@@ -8,7 +8,7 @@ import re
 from html.parser import HTMLParser
 from typing import Protocol
 
-import httpx
+import httpx2
 
 from trampo.models import Ats, Posting
 
@@ -25,7 +25,7 @@ class AtsClient(Protocol):
         ...
 
 
-def client_for(ats: Ats, http: httpx.Client) -> AtsClient:
+def client_for(ats: Ats, http: httpx2.Client) -> AtsClient:
     if ats == "greenhouse":
         from trampo.ats.greenhouse import GreenhouseClient
 

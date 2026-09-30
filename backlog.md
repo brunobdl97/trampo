@@ -6,7 +6,7 @@
 
 **Architecture:** a deterministic pipeline in Python ([ADR 0001](docs/adr/0001-deterministic-pipeline-not-agent-loop.md)); Claude is called only for Discovery, judging and Tailored resumes, through the Batch API when nobody is waiting. SQLite with hand-written SQL ([ADR 0003](docs/adr/0003-plain-sqlite-no-orm.md)). Runs locally on WSL2, scheduled by Windows Task Scheduler.
 
-**Tech stack:** Python 3.14, uv, anthropic, httpx, pydantic, FastAPI + Jinja2 + uvicorn, htmx + Pico.css, Playwright, sqlite3, pytest, ruff, pyright.
+**Tech stack:** Python 3.14, uv, anthropic, httpx2, pydantic, FastAPI + Jinja2 + uvicorn, htmx + Pico.css, Playwright, sqlite3, pytest, ruff, pyright.
 
 **Spec:** [docs/product.md](docs/product.md), [docs/architecture.md](docs/architecture.md), [CONTEXT.md](CONTEXT.md), [docs/adr/](docs/adr/). The spec wins over this backlog; if they disagree, stop and ask the owner.
 
@@ -20,12 +20,12 @@
 ## Global constraints
 
 - Python `>=3.14`, src layout, package `trampo`, entry point `trampo = "trampo.cli:main"`.
-- Runtime dependencies, and nothing else: `anthropic`, `httpx`, `pydantic`, `fastapi`, `uvicorn`, `jinja2`, `python-multipart`, `playwright`. Dev: `pytest`, `ruff`, `pyright`. Any other package needs the owner's approval.
+- Runtime dependencies, and nothing else: `anthropic`, `httpx2`, `pydantic`, `fastapi`, `uvicorn`, `jinja2`, `python-multipart`, `playwright`. Dev: `pytest`, `ruff`, `pyright`. Any other package needs the owner's approval.
 - Identifiers use the CONTEXT.md terms: Board, Posting, Job, Verdict, Status, Override, Track, Fit score, Run, Digest, Base resume, Tailored resume.
 - Verdict values: `pending` | `eligible` | `needs_review` | `rejected`. Status values: `new` | `seen` | `applied` | `dismissed`. Track ids: `backend` | `agents`. ATS ids: `greenhouse` | `lever` | `ashby`.
 - English for code, comments, commits and docs. Portuguese (pt-BR) for web UI text, Telegram text, and the reasons Claude writes (Verdict reason, Fit score reason).
 - Private data directory: env var `TRAMPO_PRIVATE_DIR`, default `private` (relative to the working directory). Never commit, print or paste its contents; examples use `private.example/`.
-- Tests never touch the network: every HTTP call goes through `httpx.MockTransport` serving files from `tests/fixtures/`. Playwright tests only render local HTML.
+- Tests never touch the network: every HTTP call goes through `httpx2.MockTransport` serving files from `tests/fixtures/`. Playwright tests only render local HTML.
 - Claude: resolve the newest Opus via the Models API at the start of each Run. Use only features stable across Opus versions: adaptive thinking, structured output via `output_config.format`, no assistant prefill, no forced `tool_choice`. Prompts live in `src/trampo/prompts/*.md`. Store `model_id` + `prompt_hash` (first 12 hex chars of the prompt file's SHA-256) on every Verdict and Tailored resume.
 - Batch API for judging and automatic Tailored resumes; a regular call for on-demand Tailored resumes and Discovery.
 - Values from the spec, all in `config.toml`: Job window 7 days, Repost window 30 days, automatic Tailored resume at Fit score ≥ 8, at most 10 Discovery searches per day.
@@ -393,9 +393,9 @@ class BoardNotFound(Exception): ...
 
 class AtsClient(Protocol):
     ats: Ats
-    def fetch_postings(self, slug: str, company: str) -> list[Posting]: ...   # BoardNotFound on 404; other httpx errors propagate
+    def fetch_postings(self, slug: str, company: str) -> list[Posting]: ...   # BoardNotFound on 404; other httpx2 errors propagate
 
-def client_for(ats: Ats, http: httpx.Client) -> AtsClient
+def client_for(ats: Ats, http: httpx2.Client) -> AtsClient
 def html_to_text(html: str) -> str          # stdlib html.parser; keeps paragraph breaks
 ```
 
@@ -507,7 +507,7 @@ class Prompt:
     text: str
     hash: str            # sha256(text)[:12]
 
-def make_client(http: httpx.Client | None = None) -> anthropic.Anthropic   # ANTHROPIC_API_KEY from env; tests pass a MockTransport client
+def make_client(http: httpx2.Client | None = None) -> anthropic.Anthropic   # ANTHROPIC_API_KEY from env; tests pass a MockTransport client
 def newest_opus(client: anthropic.Anthropic) -> str                        # Models API: ids starting "claude-opus-", newest created_at
 def load_prompt(name: str) -> Prompt                                       # src/trampo/prompts/<name>.md via importlib.resources
 def submit_batch(client: anthropic.Anthropic, requests: dict[str, dict]) -> str        # custom_id -> Messages params; returns the batch id
@@ -591,7 +591,7 @@ def format_failure(error: str) -> str
 def format_spend_cap_alert(pending: int) -> str
 
 class Telegram:
-    def __init__(self, http: httpx.Client, token: str, chat_id: str) -> None
+    def __init__(self, http: httpx2.Client, token: str, chat_id: str) -> None
     def send(self, text: str) -> None      # sendMessage, parse_mode=HTML, link previews off; raises on a non-ok response
 ```
 

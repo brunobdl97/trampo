@@ -4,7 +4,7 @@ import json
 from datetime import UTC
 from pathlib import Path
 
-import httpx
+import httpx2
 import pytest
 
 from trampo.ats import BoardNotFound, client_for
@@ -14,14 +14,14 @@ from trampo.models import Salary
 FIXTURE = json.loads(Path("tests/fixtures/lever/postings.json").read_text())
 
 
-def _handler(request: httpx.Request) -> httpx.Response:
+def _handler(request: httpx2.Request) -> httpx2.Response:
     assert request.url.path == "/v0/postings/lyrahealth"
     assert request.url.params.get("mode") == "json"
-    return httpx.Response(200, json=FIXTURE)
+    return httpx2.Response(200, json=FIXTURE)
 
 
 def _client() -> LeverClient:
-    return LeverClient(httpx.Client(transport=httpx.MockTransport(_handler)))
+    return LeverClient(httpx2.Client(transport=httpx2.MockTransport(_handler)))
 
 
 def test_parses_postings() -> None:
@@ -133,10 +133,10 @@ def test_workplace_mapping() -> None:
         },
     ]
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=payload)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=payload)
 
-    client = LeverClient(httpx.Client(transport=httpx.MockTransport(handler)))
+    client = LeverClient(httpx2.Client(transport=httpx2.MockTransport(handler)))
     postings = {p.posting_id: p for p in client.fetch_postings("acme", "Acme")}
 
     assert postings["r1"].workplace == "remote"
@@ -147,15 +147,15 @@ def test_workplace_mapping() -> None:
 
 
 def test_404_raises_board_not_found() -> None:
-    def not_found(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404)
+    def not_found(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(404)
 
-    client = LeverClient(httpx.Client(transport=httpx.MockTransport(not_found)))
+    client = LeverClient(httpx2.Client(transport=httpx2.MockTransport(not_found)))
     with pytest.raises(BoardNotFound):
         client.fetch_postings("nonexistent", "Nobody")
 
 
 def test_client_for_returns_lever() -> None:
-    client = client_for("lever", httpx.Client())
+    client = client_for("lever", httpx2.Client())
     assert isinstance(client, LeverClient)
     assert client.ats == "lever"

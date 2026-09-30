@@ -4,7 +4,7 @@ import json
 from datetime import UTC
 from pathlib import Path
 
-import httpx
+import httpx2
 import pytest
 
 from trampo.ats import BoardNotFound, client_for
@@ -13,14 +13,14 @@ from trampo.ats.greenhouse import GreenhouseClient
 FIXTURE = json.loads(Path("tests/fixtures/greenhouse/jobs.json").read_text())
 
 
-def _handler(request: httpx.Request) -> httpx.Response:
+def _handler(request: httpx2.Request) -> httpx2.Response:
     assert request.url.path == "/v1/boards/gitlab/jobs"
     assert request.url.params.get("content") == "true"
-    return httpx.Response(200, json=FIXTURE)
+    return httpx2.Response(200, json=FIXTURE)
 
 
 def _client() -> GreenhouseClient:
-    return GreenhouseClient(httpx.Client(transport=httpx.MockTransport(_handler)))
+    return GreenhouseClient(httpx2.Client(transport=httpx2.MockTransport(_handler)))
 
 
 def test_parses_postings() -> None:
@@ -68,15 +68,15 @@ def test_published_at_is_utc_or_none() -> None:
 
 
 def test_404_raises_board_not_found() -> None:
-    def not_found(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404)
+    def not_found(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(404)
 
-    client = GreenhouseClient(httpx.Client(transport=httpx.MockTransport(not_found)))
+    client = GreenhouseClient(httpx2.Client(transport=httpx2.MockTransport(not_found)))
     with pytest.raises(BoardNotFound):
         client.fetch_postings("nonexistent", "Nobody")
 
 
 def test_client_for_returns_greenhouse() -> None:
-    client = client_for("greenhouse", httpx.Client())
+    client = client_for("greenhouse", httpx2.Client())
     assert isinstance(client, GreenhouseClient)
     assert client.ats == "greenhouse"

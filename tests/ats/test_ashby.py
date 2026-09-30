@@ -4,7 +4,7 @@ import json
 from datetime import UTC
 from pathlib import Path
 
-import httpx
+import httpx2
 import pytest
 
 from trampo.ats import BoardNotFound, client_for
@@ -14,14 +14,14 @@ from trampo.models import Salary
 FIXTURE = json.loads(Path("tests/fixtures/ashby/job-board.json").read_text())
 
 
-def _handler(request: httpx.Request) -> httpx.Response:
+def _handler(request: httpx2.Request) -> httpx2.Response:
     assert request.url.path == "/posting-api/job-board/ramp"
     assert request.url.params.get("includeCompensation") == "true"
-    return httpx.Response(200, json=FIXTURE)
+    return httpx2.Response(200, json=FIXTURE)
 
 
 def _client() -> AshbyClient:
-    return AshbyClient(httpx.Client(transport=httpx.MockTransport(_handler)))
+    return AshbyClient(httpx2.Client(transport=httpx2.MockTransport(_handler)))
 
 
 def test_parses_listed_postings_only() -> None:
@@ -94,10 +94,10 @@ def test_workplace_mapping() -> None:
         "apiVersion": 1,
     }
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=payload)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=payload)
 
-    client = AshbyClient(httpx.Client(transport=httpx.MockTransport(handler)))
+    client = AshbyClient(httpx2.Client(transport=httpx2.MockTransport(handler)))
     postings = {p.posting_id: p for p in client.fetch_postings("acme", "Acme")}
 
     assert postings["r1"].workplace == "remote"
@@ -117,15 +117,15 @@ def test_compensation_to_salary() -> None:
 
 
 def test_404_raises_board_not_found() -> None:
-    def not_found(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404)
+    def not_found(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(404)
 
-    client = AshbyClient(httpx.Client(transport=httpx.MockTransport(not_found)))
+    client = AshbyClient(httpx2.Client(transport=httpx2.MockTransport(not_found)))
     with pytest.raises(BoardNotFound):
         client.fetch_postings("nonexistent", "Nobody")
 
 
 def test_client_for_returns_ashby() -> None:
-    client = client_for("ashby", httpx.Client())
+    client = client_for("ashby", httpx2.Client())
     assert isinstance(client, AshbyClient)
     assert client.ats == "ashby"
