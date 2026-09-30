@@ -71,7 +71,7 @@ Every Job is assigned to one Track. The Fit score is relative to that Track, and
    - Greenhouse: `https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true`
    - Lever: `https://api.lever.co/v0/postings/{slug}?mode=json`
    - Ashby: `https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true`
-3. **Pre-filter (code)** — drop what is objective: publish date, title keywords, and structured location/workplace fields when the ATS provides them.
+3. **Pre-filter (code)** — drop what is objective: publish date, title keywords, and the structured workplace field (hybrid/on-site) when the ATS provides it; location is left to Claude.
 4. **Dedupe** — group Postings into Jobs before judging, so each Job is judged once. Two Postings belong to the same Job when:
    - they share ATS + posting ID; or
    - they share company + normalized title. Postings of one Job in several locations become a single Job with a list of locations. A Repost (new ID within 30 days) keeps the Job's Status and notes.

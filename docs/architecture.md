@@ -132,7 +132,7 @@ private/                   # gitignored
 
 - Daily log file in `private/logs/` (stdlib `logging`).
 - A failed Run sends a Telegram alert with a short error.
-- At the end of each Run, `private/` is copied to the cloud-synced Windows folder set in `profile.toml`; the database is copied with SQLite's online backup API, which is safe while the DB is in use.
+- At the end of each Run, `private/` except `.env` is copied to the cloud-synced Windows folder set in `profile.toml`; the database is copied with SQLite's online backup API, which is safe while the DB is in use, as a rollback-journal file (no WAL side files).
 
 ## Testing
 

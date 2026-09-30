@@ -8,7 +8,7 @@ A personal job-search agent. Every morning it pulls fresh postings from the publ
 
 1. **Discovery** — web searches find new company job boards on the three ATSs.
 2. **Collect** — each board's public API is read (no scraping).
-3. **Pre-filter** — date, title keywords and location fields drop the obvious misses.
+3. **Pre-filter** — date, title keywords and workplace (hybrid/on-site) drop the obvious misses; location is left to Claude.
 4. **Dedupe** — the same job posted in several locations, or reposted, stays one job.
 5. **Judge** — the latest Claude Opus reads each remaining job and returns a verdict (`eligible` / `needs_review` / `rejected`, with a reason), a track and a 0–10 fit score.
 6. **Digest** — new eligible jobs go to Telegram; everything is browsable on a local htmx page.
