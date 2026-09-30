@@ -482,13 +482,13 @@ def assign_job(store: Store, posting: Posting, run_id: int, now: datetime,
 
 `assign_job`: a known Posting (same ATS + ID) → its Job, `created=False`. Otherwise a Job with the same normalized company and title whose last activity is within `repost_days` → that Job (a Repost, or the same Job in another location). Otherwise → `store.create_job(...)`, `created=True`. The caller then calls `store.upsert_posting`.
 
-- [ ] Tests first:
+- [x] Tests first:
   - `test_location_variants_normalize_equal` — "Senior Backend Engineer (Remote - LATAM)", "Senior Backend Engineer - Brazil" and "senior backend engineer" are equal.
   - `test_team_suffix_kept` — "Senior Engineer - Payments" ≠ "Senior Engineer - Platform".
   - `test_same_run_locations_share_job` — two Postings, same company and title, different locations → one Job.
   - `test_repost_within_window_keeps_job_and_status` — a Job marked `applied` 20 days ago + a new Posting ID → same Job, Status still `applied`.
   - `test_repost_after_window_creates_new_job` — the same after 40 days → a new Job.
-- [ ] Implement; green checks; commit `feat(dedup): group Postings into Jobs`.
+- [x] Implement; green checks; commit `feat(dedup): group Postings into Jobs`.
 
 ### Task 10: Claude foundation
 
