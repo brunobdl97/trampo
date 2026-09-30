@@ -401,14 +401,14 @@ def html_to_text(html: str) -> str          # stdlib html.parser; keeps paragrap
 
 Greenhouse: `GET https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true` → `jobs[]`: `id` → `posting_id`, `title`, `absolute_url` → `url`, `location.name` → `location`, `content` (HTML-escaped: `html.unescape` then `html_to_text`) → `description`, `first_published` → `published_at` when present, else `None` (`updated_at` is **not** a publish date). No structured workplace or salary → `None`.
 
-- [ ] Record the fixture: fetch a real public board (e.g. `gitlab`) once with curl, keep 3 jobs, and include one without `first_published`.
-- [ ] Tests first:
+- [x] Record the fixture: fetch a real public board (e.g. `gitlab`) once with curl, keep 3 jobs, and include one without `first_published`.
+- [x] Tests first:
   - `test_parses_postings` — count, ids as strings, URL, location.
   - `test_description_is_plain_text` — no HTML tags or entities left.
   - `test_published_at_is_utc_or_none`.
   - `test_404_raises_board_not_found`.
   - `test_client_for_returns_greenhouse`.
-- [ ] Implement; green checks; commit `feat(ats): client protocol and Greenhouse`.
+- [x] Implement; green checks; commit `feat(ats): client protocol and Greenhouse`.
 
 ### Task 6: Lever client
 
