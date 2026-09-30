@@ -455,7 +455,7 @@ Rules, in order, all case-insensitive and on **word boundaries**:
 
 `mentions_go`: true for `golang` (any case) or the standalone word `Go` capitalized and not part of a hyphenated word (`(?<![\w-])Go(?![\w-])`).
 
-- [ ] Tests first (Review Focus 5):
+- [x] Tests first (Review Focus 5):
   - `test_internal_tools_is_not_intern` — "Backend Engineer, Internal Tools" → `backend`.
   - `test_django_is_not_go_engineer` — "Django Engineer" → `Dropped`.
   - `test_software_engineer_needs_go` — with "We use Go and Kafka" → `backend`; with "our go-to-market team" → `Dropped`; with "golang" → `backend`.
@@ -463,7 +463,7 @@ Rules, in order, all case-insensitive and on **word boundaries**:
   - `test_automation_engineer_kept` — "Automation Engineer" → `agents` (the QA sense is left to Claude).
   - `test_ignored_keyword` — "Senior Frontend Engineer" → `Dropped`.
   - `test_hybrid_dropped`, `test_old_posting_dropped`, `test_undated_posting_kept`.
-- [ ] Implement; green checks; commit `feat(prefilter): objective rules before judging`.
+- [x] Implement; green checks; commit `feat(prefilter): objective rules before judging`.
 
 ### Task 9: Dedupe into Jobs
 
