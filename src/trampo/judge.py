@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import anthropic
 from anthropic.types import Message
 
-from trampo.claude import Prompt
+from trampo.claude import Prompt, parse_structured
 from trampo.config import Config, Profile, SalaryFloor, Track
 from trampo.models import JobWithPostings, Judgment, Posting, Salary
 from trampo.resume.model import Resume
@@ -79,7 +79,8 @@ def _format_published(posting: Posting) -> str:
     return posting.published_at.date().isoformat()
 
 
-def _user_message(item: JobWithPostings) -> str:
+def format_job(item: JobWithPostings) -> str:
+    """The Job as Claude reads it: its fields and its latest Posting's description."""
     latest = item.postings[-1]
     locations = ", ".join(item.job.locations)
     return (
@@ -117,7 +118,7 @@ def judge_params(
                 "cache_control": {"type": "ephemeral"},
             },
         ],
-        "messages": [{"role": "user", "content": _user_message(item)}],
+        "messages": [{"role": "user", "content": format_job(item)}],
         "output_config": {
             "format": {
                 "type": "json_schema",
@@ -128,14 +129,6 @@ def judge_params(
 
 
 def parse_judgment(message: Message) -> Judgment | None:
-    """The Judgment Claude produced, or None on a refusal (`stop_reason ==
-    "refusal"`). Every other failure — invalid/out-of-range JSON, or no text
-    block at all (e.g. `max_tokens` truncation) — raises ValueError (Pydantic's
-    ValidationError is a ValueError subclass), so the pipeline can catch one
-    type for both."""
-    if message.stop_reason == "refusal":
-        return None
-    text = next((block.text for block in message.content if block.type == "text"), None)
-    if text is None:
-        raise ValueError(f"no text block in judge response (stop_reason={message.stop_reason!r})")
-    return Judgment.model_validate_json(text)
+    """The Judgment Claude produced; see `parse_structured` (None on a refusal,
+    ValueError on anything else that is not a valid Judgment)."""
+    return parse_structured(message, Judgment)

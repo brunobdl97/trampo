@@ -21,6 +21,7 @@ from anthropic.types.messages.message_batch_canceled_result import MessageBatchC
 from anthropic.types.messages.message_batch_errored_result import MessageBatchErroredResult
 from anthropic.types.messages.message_batch_expired_result import MessageBatchExpiredResult
 from anthropic.types.messages.message_batch_succeeded_result import MessageBatchSucceededResult
+from pydantic import BaseModel
 
 PROMPTS = importlib.resources.files("trampo") / "prompts"
 
@@ -132,3 +133,16 @@ def create_message(client: anthropic.Anthropic, params: dict) -> Message:
     """A regular (non-batch) Messages API call, through the spend-limit wrapper.
     Used by Discovery, on-demand Tailored resumes and eval."""
     return _call(lambda: client.messages.create(**params))
+
+
+def parse_structured[M: BaseModel](message: Message, model_cls: type[M]) -> M | None:
+    """The `output_config.format` output Claude produced, or None on a refusal
+    (`stop_reason == "refusal"`). Every other failure — invalid JSON, or no text
+    block at all (e.g. `max_tokens` truncation) — raises ValueError (Pydantic's
+    ValidationError is a ValueError subclass), so callers catch one type."""
+    if message.stop_reason == "refusal":
+        return None
+    text = next((block.text for block in message.content if block.type == "text"), None)
+    if text is None:
+        raise ValueError(f"no text block in the response (stop_reason={message.stop_reason!r})")
+    return model_cls.model_validate_json(text)

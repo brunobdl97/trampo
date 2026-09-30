@@ -1,6 +1,7 @@
-"""The daily Run: resolve the newest Opus, recover in-flight judge batches,
+"""The daily Run: resolve the newest Opus, recover in-flight batches,
 Discovery, collect Postings from every Board, pre-filter, dedupe into Jobs,
-close/reject, judge through the Batch API, send the Digest, record the Run.
+close/reject, judge through the Batch API, send the Digest, automatic Tailored
+resumes through a second batch, record the Run.
 
 Failure modes handled here (backlog.md, Review Focus): an ATS outage never
 closes that Board's Postings; the spend limit skips the remaining Claude steps
@@ -19,10 +20,12 @@ from anthropic.types import Message
 
 from trampo.ats import AtsClient, BoardNotFound
 from trampo.claude import (
+    Prompt,
     SpendLimitReached,
     batch_results,
     load_prompt,
     newest_opus,
+    parse_structured,
     submit_batch,
 )
 from trampo.config import Config, Paths, Profile
@@ -36,9 +39,16 @@ from trampo.digest import (
 )
 from trampo.discovery import discover
 from trampo.judge import judge_params, parse_judgment
-from trampo.models import Ats, VerdictValue
+from trampo.models import Ats, JobRow, VerdictValue
 from trampo.prefilter import Dropped, prefilter
-from trampo.resume.model import load_resume
+from trampo.resume.model import Resume, load_resume
+from trampo.resume.tailor import (
+    InventedFactsError,
+    job_track,
+    resume_language,
+    save_tailored,
+    tailor_params,
+)
 from trampo.store import Store
 
 logger = logging.getLogger(__name__)
@@ -114,6 +124,14 @@ def run(ctx: RunContext) -> RunSummary:
             for message in format_digest(eligible, summary.needs_review, summary.rejected):
                 ctx.telegram.send(message)
 
+        # 8a. Automatic Tailored resumes, in their own batch after the Digest.
+        if model is not None and spend_limit is None:
+            try:
+                _tailor(ctx, summary.run_id, model, eligible)
+            except SpendLimitReached as exc:  # the Run's first: alert once all the same
+                logger.warning("Spend limit reached, Tailored resumes skipped: %s", exc)
+                send_alert(ctx.telegram, format_spend_cap_alert(ctx.store.pending_open_count()))
+
         # 9. Record the Run
         summary.pending = ctx.store.pending_open_count()
         ctx.store.finish_run(summary.run_id, ctx.now(), "ok", _counts(summary), None, model)
@@ -146,15 +164,20 @@ def send_alert(telegram: Telegram, text: str) -> None:
 
 
 def _recover(ctx: RunContext, judged: dict[int, VerdictValue]) -> None:
-    """Collect every judge batch a previous Run left open, with the model and
-    prompt it was submitted with. One still processing keeps its Jobs for later."""
-    for batch_id, _, model_id, prompt_hash in ctx.store.open_batches("judge"):
-        results = batch_results(ctx.claude, batch_id)
-        if results is None:
-            logger.info("Judge batch %s still processing; its Jobs wait", batch_id)
-            continue
-        logger.info("Recovered judge batch %s", batch_id)
-        _save_results(ctx, batch_id, results, model_id, prompt_hash, judged)
+    """Collect every judge and resume batch a previous Run left open, with the
+    model and prompt it was submitted with. One still processing keeps its Jobs
+    for later."""
+    for kind in ("judge", "resume"):
+        for batch_id, _, model_id, prompt_hash in ctx.store.open_batches(kind):
+            results = batch_results(ctx.claude, batch_id)
+            if results is None:
+                logger.info("%s batch %s still processing; its Jobs wait", kind, batch_id)
+                continue
+            logger.info("Recovered %s batch %s", kind, batch_id)
+            if kind == "judge":
+                _save_results(ctx, batch_id, results, model_id, prompt_hash, judged)
+            else:
+                _save_resumes(ctx, batch_id, results, model_id, prompt_hash)
 
 
 def _discover(ctx: RunContext, model: str) -> None:
@@ -210,17 +233,58 @@ def _judge(ctx: RunContext, run_id: int, model: str, judged: dict[int, VerdictVa
         f"judge-{item.job.id}": judge_params(item, resume, ctx.config, ctx.profile, prompt, model)
         for item in items
     }
+    batch_id, results = _submit_and_poll(ctx, "judge", run_id, requests, model, prompt.hash)
+    _save_results(ctx, batch_id, results, model, prompt.hash, judged)
+
+
+def _tailor(ctx: RunContext, run_id: int, model: str, eligible: list[JobRow]) -> None:
+    """One resume batch for the open Jobs that became eligible this Run at the
+    Fit-score threshold and have no Tailored resume yet."""
+    threshold = ctx.config.auto_resume_min_fit_score
+    items = [
+        ctx.store.job(job.id)
+        for job in eligible
+        if job.fit_score is not None and job.fit_score >= threshold and job.resume_path is None
+    ]
+    if not items:
+        return
+    prompt = load_prompt("tailor")
+    base = load_resume(ctx.paths.resume_json)
+    requests = {
+        f"resume-{item.job.id}": tailor_params(
+            item,
+            base,
+            job_track(item, ctx.config),
+            prompt,
+            model,
+            resume_language(item.job.job_language),
+        )
+        for item in items
+    }
+    batch_id, results = _submit_and_poll(ctx, "resume", run_id, requests, model, prompt.hash)
+    _save_resumes(ctx, batch_id, results, model, prompt.hash)
+
+
+def _submit_and_poll(
+    ctx: RunContext,
+    kind: str,
+    run_id: int,
+    requests: dict[str, dict],
+    model: str,
+    prompt_hash: str,
+) -> tuple[str, dict[str, Message | str]]:
+    """Submit one batch (custom ids "<kind>-<job id>") and poll it until it ends."""
     batch_id = submit_batch(ctx.claude, requests)
     # Recorded before polling, so a Run that dies here leaves it recoverable.
-    job_ids = [item.job.id for item in items]
-    ctx.store.add_batch(batch_id, "judge", run_id, job_ids, model, prompt.hash, ctx.now())
-    logger.info("Submitted judge batch %s with %d Jobs", batch_id, len(items))
+    job_ids = [int(custom_id.removeprefix(f"{kind}-")) for custom_id in requests]
+    ctx.store.add_batch(batch_id, kind, run_id, job_ids, model, prompt_hash, ctx.now())
+    logger.info("Submitted %s batch %s with %d Jobs", kind, batch_id, len(job_ids))
 
     results = None
     while results is None:
         ctx.sleep(ctx.poll_interval)
         results = batch_results(ctx.claude, batch_id)
-    _save_results(ctx, batch_id, results, model, prompt.hash, judged)
+    return batch_id, results
 
 
 def _save_results(
@@ -251,6 +315,40 @@ def _save_results(
         else:
             ctx.store.save_judgment(job_id, judgment, model_id, prompt_hash)
             judged[job_id] = judgment.verdict
+    ctx.store.mark_batch_collected(batch_id, ctx.now())
+
+
+def _save_resumes(
+    ctx: RunContext,
+    batch_id: str,
+    results: dict[str, Message | str],
+    model_id: str,
+    prompt_hash: str,
+) -> None:
+    base = load_resume(ctx.paths.resume_json)
+    # save_tailored records only the prompt's hash: the one the batch was submitted with.
+    prompt = Prompt(name="tailor", text="", hash=prompt_hash)
+    for custom_id, result in results.items():
+        job_id = int(custom_id.removeprefix("resume-"))
+        if ctx.store.job(job_id).job.resume_path is not None:  # made on demand meanwhile
+            logger.info("Job %d already has a Tailored resume; the batch's is dropped", job_id)
+            continue
+        if isinstance(result, str):  # errored, canceled or expired
+            logger.warning("Job %d gets no Tailored resume: batch request %s", job_id, result)
+            continue
+        # One Job's failure (invalid output, the guard, rendering) skips only that
+        # Job: a deterministic one, e.g. Chromium missing, must not fail every
+        # later Run at recovery. The Job keeps no resume_path; on demand still works.
+        try:
+            tailored = parse_structured(result, Resume)
+            if tailored is None:
+                logger.warning("Job %d gets no Tailored resume: refused by the model", job_id)
+                continue
+            save_tailored(ctx.store, ctx.paths, job_id, tailored, base, model_id, prompt)
+        except InventedFactsError:
+            continue  # save_tailored logged the flagged facts
+        except Exception:
+            logger.exception("Job %d gets no Tailored resume", job_id)
     ctx.store.mark_batch_collected(batch_id, ctx.now())
 
 

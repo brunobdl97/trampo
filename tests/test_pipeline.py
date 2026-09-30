@@ -21,6 +21,7 @@ from trampo.config import load_config, load_profile, private_paths
 from trampo.digest import Telegram, format_digest, format_failure, format_spend_cap_alert
 from trampo.models import BoardRef
 from trampo.pipeline import RunContext, RunSummary, run
+from trampo.resume import tailor
 from trampo.store import Store
 
 FIXTURES = Path("tests/fixtures")
@@ -30,6 +31,7 @@ GITLAB = json.loads((FIXTURES / "greenhouse/jobs.json").read_text())
 GITLAB_POSTING = "8644569002"
 GITLAB_TITLE = "Intermediate Backend Engineer, Platform Readiness"
 ACME_POSTING = "7000000001"
+GLOBEX_POSTING = "7000000002"
 NOW = datetime(2026, 8, 5, 12, 0, tzinfo=UTC)  # 2 days after GITLAB_POSTING's first_published
 OPUS = "claude-opus-5-20260201"  # the newest Opus in models_list.json
 SPEND_LIMIT = json.loads((FIXTURES / "anthropic/spend_limit_400.json").read_text())
@@ -41,22 +43,19 @@ ELIGIBLE = {
     "remote": True,
     "open_to_brazil": True,
     "requires_us_work_authorization": False,
-    "fit_score": 8,
+    "fit_score": 7,  # below auto_resume_min_fit_score: no Tailored resume unless a test asks
     "fit_reason": "Boa aderência ao perfil.",
     "job_language": "en",
 }
-
-
-def _acme_board() -> dict[str, Any]:
-    """A second Greenhouse Board: GITLAB's backend Posting under another id,
-    title and company, so it becomes its own Job."""
-    job = copy.deepcopy(GITLAB["jobs"][0])
-    job.update(
-        id=int(ACME_POSTING),
-        title="Senior Golang Engineer",
-        absolute_url=f"https://job-boards.greenhouse.io/acme/jobs/{ACME_POSTING}",
-    )
-    return {"jobs": [job], "meta": {"total": 1}}
+BEST_MATCH = {**ELIGIBLE, "fit_score": 8}
+# A Tailored resume identical to the Base resume invents nothing.
+TAILORED = json.loads(Path("private.example/resume.json").read_text())
+OPUS_6 = {
+    "type": "model",
+    "id": "claude-opus-6-20260801",
+    "display_name": "Claude Opus 6",
+    "created_at": "2026-08-01T00:00:00Z",
+}
 
 
 def _message(*, stop_reason: str = "end_turn", content: list[dict]) -> dict[str, Any]:
@@ -72,8 +71,8 @@ def _message(*, stop_reason: str = "end_turn", content: list[dict]) -> dict[str,
     }
 
 
-def _succeeded(judgment: dict[str, Any]) -> dict[str, Any]:
-    text = json.dumps(judgment)
+def _succeeded(payload: dict[str, Any]) -> dict[str, Any]:
+    text = json.dumps(payload)
     return {"type": "succeeded", "message": _message(content=[{"type": "text", "text": text}])}
 
 
@@ -92,7 +91,9 @@ class _Fakes:
         self.discovery_down = False  # /v1/messages answers 500
         self.telegram_down = False  # sendMessage answers 502
         self.processing = False  # every batch still in progress
-        self.result = _succeeded(ELIGIBLE)  # each batch request's result
+        self.result = _succeeded(ELIGIBLE)  # each judge request's result...
+        self.judgments: dict[str, dict[str, Any]] = {}  # ...unless its company is here
+        self.resume = _succeeded(TAILORED)  # each resume request's result
         self.batches: dict[str, list[dict[str, Any]]] = {}  # batch id -> its requests
         self.calls: list[str] = []  # "METHOD path" of every Anthropic call
         self.sent: list[str] = []  # Telegram texts
@@ -128,7 +129,7 @@ class _Fakes:
         batch_id = path.split("/")[4]  # /v1/messages/batches/<id>[/results]
         if path.endswith("/results"):
             lines = [
-                json.dumps({"custom_id": r["custom_id"], "result": self.result})
+                json.dumps({"custom_id": r["custom_id"], "result": self._result(r)})
                 for r in self.batches[batch_id]
             ]
             return httpx2.Response(200, content="\n".join(lines).encode())
@@ -141,6 +142,12 @@ class _Fakes:
         self.sent.append(json.loads(request.content)["text"])
         ok = json.loads((FIXTURES / "telegram/sendMessage-ok.json").read_text())
         return httpx2.Response(200, json=ok)
+
+    def _result(self, request: dict[str, Any]) -> dict[str, Any]:
+        if request["custom_id"].startswith("resume-"):
+            return self.resume
+        first_line = request["params"]["messages"][0]["content"].split("\n")[0]
+        return self.judgments.get(first_line.removeprefix("Company: "), self.result)
 
     def _batch(self, batch_id: str, *, ended: bool) -> dict[str, Any]:
         return {
@@ -200,9 +207,23 @@ def ctx(tmp_path: Path, fakes: _Fakes) -> Iterator[RunContext]:
     store.close()
 
 
+def _add_board(
+    ctx: RunContext, fakes: _Fakes, slug: str, company: str, posting_id: str, title: str
+) -> None:
+    """Another Greenhouse Board: GITLAB's backend Posting under another id,
+    title and company, so it becomes its own Job."""
+    ctx.store.add_board(BoardRef(ats="greenhouse", slug=slug), company, NOW)
+    job = copy.deepcopy(GITLAB["jobs"][0])
+    job.update(
+        id=int(posting_id),
+        title=title,
+        absolute_url=f"https://job-boards.greenhouse.io/{slug}/jobs/{posting_id}",
+    )
+    fakes.boards[slug] = {"jobs": [job], "meta": {"total": 1}}
+
+
 def _add_acme(ctx: RunContext, fakes: _Fakes) -> None:
-    ctx.store.add_board(BoardRef(ats="greenhouse", slug="acme"), "Acme", NOW)
-    fakes.boards["acme"] = _acme_board()
+    _add_board(ctx, fakes, "acme", "Acme", ACME_POSTING, "Senior Golang Engineer")
 
 
 def _job_id(ctx: RunContext, posting_id: str) -> int:
@@ -337,14 +358,7 @@ def test_in_flight_batch_is_collected_not_resubmitted(ctx: RunContext, fakes: _F
     # The Run after: the batch has ended -> collected with the model it was
     # submitted with, even though a newer Opus exists now; still never resubmitted.
     fakes.processing = False
-    fakes.models["data"].append(
-        {
-            "type": "model",
-            "id": "claude-opus-6-20260801",
-            "display_name": "Claude Opus 6",
-            "created_at": "2026-08-01T00:00:00Z",
-        }
-    )
+    fakes.models["data"].append(OPUS_6)
     collected = run(ctx)
 
     assert list(fakes.batches) == [batch_id]
@@ -510,3 +524,149 @@ def test_spend_cap_alert_failure_does_not_stop_the_run(ctx: RunContext, fakes: _
     assert summary.pending == 1
     outcome = _row(ctx, "SELECT outcome FROM runs WHERE id = ?", summary.run_id)["outcome"]
     assert outcome == "ok"
+
+
+def test_auto_only_for_eligible_at_threshold(ctx: RunContext, fakes: _Fakes) -> None:
+    _add_acme(ctx, fakes)
+    _add_board(ctx, fakes, "globex", "Globex", GLOBEX_POSTING, "Senior Backend Engineer")
+    fakes.judgments = {  # GitLab: eligible at Fit score 7
+        "Acme": _succeeded({**BEST_MATCH, "verdict": "needs_review", "fit_score": 9}),
+        "Globex": _succeeded(BEST_MATCH),
+    }
+
+    summary = run(ctx)
+
+    gitlab, acme, globex = (_job_id(ctx, p) for p in (GITLAB_POSTING, ACME_POSTING, GLOBEX_POSTING))
+    assert (summary.eligible, summary.needs_review) == (2, 1)
+    [judge_batch, resume_batch] = _judged_ids(fakes)
+    assert len(judge_batch) == 3
+    assert resume_batch == [f"resume-{globex}"]
+    [request] = list(fakes.batches.values())[1]
+    assert request["params"]["model"] == OPUS
+    assert "Go, distributed systems" in request["params"]["messages"][0]["content"]
+
+    path = ctx.paths.resumes_dir / "globex-senior-backend-engineer.pdf"
+    assert ctx.store.job(globex).job.resume_path == str(path)
+    assert path.read_bytes().startswith(b"%PDF")
+    stored = _row(ctx, "SELECT resume_model_id, resume_prompt_hash FROM jobs WHERE id = ?", globex)
+    assert tuple(stored) == (OPUS, load_prompt("tailor").hash)
+    for job_id in (gitlab, acme):
+        assert ctx.store.job(job_id).job.resume_path is None
+    assert ctx.store.open_batches("resume") == []
+
+
+def test_refused_resume_not_saved(
+    ctx: RunContext, fakes: _Fakes, caplog: pytest.LogCaptureFixture
+) -> None:
+    fakes.result = _succeeded(BEST_MATCH)
+    invented = copy.deepcopy(TAILORED)
+    invented["work"][0]["name"] = "Globex"
+    fakes.resume = _succeeded(invented)
+
+    summary = run(ctx)
+
+    job = ctx.store.job(_job_id(ctx, GITLAB_POSTING)).job
+    assert job.resume_path is None
+    assert not ctx.paths.resumes_dir.exists()  # nothing rendered
+    assert "Globex" in caplog.text  # the flagged fact is logged
+    assert ctx.store.open_batches("resume") == []  # collected all the same
+    assert fakes.sent == format_digest([job], needs_review=0, rejected=0)
+    outcome = _row(ctx, "SELECT outcome FROM runs WHERE id = ?", summary.run_id)["outcome"]
+    assert outcome == "ok"
+
+
+def test_resume_batch_recovered_next_run(ctx: RunContext, fakes: _Fakes) -> None:
+    fakes.result = _succeeded(BEST_MATCH)
+    # The PC is turned off while polling the second (resume) batch, after the Digest.
+    ctx.sleep = lambda seconds: _die(seconds) if len(fakes.batches) == 2 else None
+    with pytest.raises(_ProcessDied):
+        run(ctx)
+    job_id = _job_id(ctx, GITLAB_POSTING)
+    [(_, job_ids, model_id, _)] = ctx.store.open_batches("resume")
+    assert (job_ids, model_id) == ([job_id], OPUS)
+    assert ctx.store.job(job_id).job.resume_path is None
+    assert len(fakes.sent) == 1  # the Digest went out before the resume batch
+
+    # Next Run: collected with the model and prompt it was submitted with, even
+    # though a newer Opus exists now; never resubmitted.
+    ctx.sleep = lambda seconds: None
+    fakes.models["data"].append(OPUS_6)
+    run(ctx)
+
+    assert len(fakes.batches) == 2
+    assert ctx.store.open_batches("resume") == []
+    resume_path = ctx.store.job(job_id).job.resume_path
+    assert resume_path is not None
+    assert Path(resume_path).read_bytes().startswith(b"%PDF")
+    stored = _row(ctx, "SELECT resume_model_id, resume_prompt_hash FROM jobs WHERE id = ?", job_id)
+    assert tuple(stored) == (OPUS, load_prompt("tailor").hash)
+
+
+def test_spend_limit_on_resume_batch_alerts_once(ctx: RunContext, fakes: _Fakes) -> None:
+    fakes.result = _succeeded(BEST_MATCH)
+    # The cap is reached while the judge batch is polled: the resume batch is refused.
+    ctx.sleep = lambda seconds: fakes.spend_limit.add("batches")
+
+    summary = run(ctx)
+
+    job = ctx.store.job(_job_id(ctx, GITLAB_POSTING)).job
+    assert (job.verdict, job.resume_path) == ("eligible", None)
+    assert list(fakes.batches) == ["msgbatch_1"]  # the judge batch only
+    assert ctx.store.open_batches("resume") == []
+    digest = format_digest([job], needs_review=0, rejected=0)
+    assert fakes.sent == [*digest, format_spend_cap_alert(0)]
+    outcome = _row(ctx, "SELECT outcome FROM runs WHERE id = ?", summary.run_id)["outcome"]
+    assert outcome == "ok"
+
+
+def test_resume_save_failure_skips_only_that_job(
+    ctx: RunContext,
+    fakes: _Fakes,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _add_acme(ctx, fakes)
+    fakes.result = _succeeded(BEST_MATCH)
+
+    def html_to_pdf(html: str, out: Path) -> None:  # no Chromium: fails for Acme only
+        if out.name.startswith("acme-"):
+            raise RuntimeError("Chromium is not installed")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(b"%PDF-stub")
+
+    monkeypatch.setattr(tailor, "html_to_pdf", html_to_pdf)
+
+    summary = run(ctx)
+
+    gitlab = ctx.store.job(_job_id(ctx, GITLAB_POSTING)).job
+    acme = ctx.store.job(_job_id(ctx, ACME_POSTING)).job
+    assert gitlab.resume_path is not None
+    assert Path(gitlab.resume_path).read_bytes() == b"%PDF-stub"
+    assert acme.resume_path is None  # on demand stays possible
+    assert "Chromium is not installed" in caplog.text
+    assert ctx.store.open_batches("resume") == []  # collected: no failing retry every Run
+    outcome = _row(ctx, "SELECT outcome FROM runs WHERE id = ?", summary.run_id)["outcome"]
+    assert outcome == "ok"
+
+
+def test_recovered_resume_never_overwrites_one_made_by_hand(ctx: RunContext, fakes: _Fakes) -> None:
+    fakes.result = _succeeded(BEST_MATCH)
+    ctx.sleep = lambda seconds: _die(seconds) if len(fakes.batches) == 2 else None
+    with pytest.raises(_ProcessDied):
+        run(ctx)
+    job_id = _job_id(ctx, GITLAB_POSTING)
+    # Meanwhile the Candidate generated one on demand.
+    by_hand = ctx.paths.resumes_dir / "by-hand.pdf"
+    ctx.store.save_resume(job_id, by_hand, "claude-opus-by-hand", "hand0000hash")
+
+    ctx.sleep = lambda seconds: None
+    run(ctx)
+
+    assert ctx.store.open_batches("resume") == []  # collected all the same
+    stored = _row(
+        ctx,
+        "SELECT resume_path, resume_model_id, resume_prompt_hash FROM jobs WHERE id = ?",
+        job_id,
+    )
+    assert tuple(stored) == (str(by_hand), "claude-opus-by-hand", "hand0000hash")
+    assert not ctx.paths.resumes_dir.exists()  # nothing rendered over it

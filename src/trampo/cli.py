@@ -12,13 +12,14 @@ from pathlib import Path
 import httpx2
 
 from trampo.ats import client_for
-from trampo.claude import make_client
+from trampo.claude import SpendLimitReached, make_client
 from trampo.config import Paths, load_config, load_profile, private_paths
 from trampo.digest import Telegram, format_failure
 from trampo.pipeline import RunContext, run, send_alert
 from trampo.resume import load_resume
 from trampo.resume.render import html_to_pdf, render_html
-from trampo.store import Store
+from trampo.resume.tailor import InventedFactsError, TailorRefused, tailor_now
+from trampo.store import JobNotFound, Store
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,9 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command")
     commands.add_parser("run", help="one daily Run: collect, judge, send the Digest")
     resume_parser = commands.add_parser("resume", help="render a resume to PDF")
+    resume_parser.add_argument(
+        "job_id", nargs="?", type=int, help="write the Tailored resume for this Job"
+    )
     resume_parser.add_argument("--base", action="store_true", help="render the Base resume")
     resume_parser.add_argument("--lang", choices=["en", "pt"], default="en")
     return parser
@@ -99,9 +103,11 @@ def _run() -> int:
 
 
 def _resume(args: argparse.Namespace) -> int:
-    if not args.base:
-        print("trampo resume: use --base (tailored resumes: Task 16)", file=sys.stderr)
+    if args.base == (args.job_id is not None):
+        print("trampo resume: give either a Job id or --base", file=sys.stderr)
         return 2
+    if args.job_id is not None:
+        return _tailor(args.job_id)
 
     paths = private_paths()
     resume = load_resume(paths.resume_json)
@@ -109,6 +115,35 @@ def _resume(args: argparse.Namespace) -> int:
     out = paths.resumes_dir / f"base-{args.lang}.pdf"
     html_to_pdf(html, out)
     print(out)
+    return 0
+
+
+def _tailor(job_id: int) -> int:
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("trampo resume: missing ANTHROPIC_API_KEY (private/.env)", file=sys.stderr)
+        return 2
+
+    paths = private_paths()
+    with _http() as http:
+        # Telegram is part of a RunContext but never used here: no credentials needed.
+        ctx = _context(paths, http, Telegram(http, "", ""))
+        try:
+            print(tailor_now(ctx, job_id))
+        except InventedFactsError as exc:
+            facts = "\n".join(f"- {fact}" for fact in exc.facts)
+            print(
+                f"trampo resume: refused, facts absent from the Base resume:\n{facts}",
+                file=sys.stderr,
+            )
+            return 1
+        except SpendLimitReached:
+            print("trampo resume: Anthropic spend limit reached", file=sys.stderr)
+            return 1
+        except (JobNotFound, TailorRefused) as exc:
+            print(f"trampo resume: {exc}", file=sys.stderr)
+            return 1
+        finally:
+            ctx.store.close()
     return 0
 
 

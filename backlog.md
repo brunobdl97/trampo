@@ -703,13 +703,13 @@ Pipeline hook (after the Digest): new `eligible` Jobs with `fit_score >= auto_re
 
 CLI: `trampo resume <job_id>` → `tailor_now`, prints the path.
 
-- [ ] Tests first:
+- [x] Tests first:
   - `test_guard_flags_new_company`, `test_guard_flags_changed_dates`, `test_guard_flags_new_number` (e.g. "40%" absent from the base) — Review Focus 4.
   - `test_guard_allows_reorder_and_translation`.
   - `test_refused_resume_not_saved`.
   - `test_auto_only_for_eligible_at_threshold` — Fit score 7 and `needs_review` Jobs are skipped; 8 gets one.
   - `test_resume_batch_recovered_next_run`.
-- [ ] Implement; green checks; commit `feat(resume): Tailored resumes`.
+- [x] Implement; green checks; commit `feat(resume): Tailored resumes`.
 
 ### Task 17: Web page (`trampo serve`)
 

@@ -54,6 +54,11 @@ def _posting_from_row(row: sqlite3.Row, company: str) -> Posting:
     )
 
 
+class JobNotFound(LookupError):
+    def __init__(self, job_id: int) -> None:
+        super().__init__(f"Job {job_id} not found")
+
+
 class Store:
     def __init__(self, path: Path) -> None:
         self._conn = sqlite3.connect(path)
@@ -320,7 +325,8 @@ class Store:
 
     def job(self, job_id: int) -> JobWithPostings:
         row = self._conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
-        assert row is not None
+        if row is None:
+            raise JobNotFound(job_id)
         posting_rows = self._conn.execute(
             "SELECT * FROM postings WHERE job_id = ? ORDER BY first_seen_at", (job_id,)
         ).fetchall()

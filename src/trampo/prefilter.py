@@ -20,7 +20,7 @@ class Dropped:
     reason: str  # English, for logs and Run counts
 
 
-def _matches(keyword: str, text: str) -> bool:
+def matches_word(keyword: str, text: str) -> bool:
     pattern = r"(?<!\w)" + re.escape(keyword) + r"(?!\w)"
     return re.search(pattern, text, re.IGNORECASE) is not None
 
@@ -31,9 +31,9 @@ def mentions_go(description: str) -> bool:
 
 def title_track(title: str, description: str, config: Config) -> TrackId | None:
     for track in config.tracks:
-        if any(_matches(kw, title) for kw in track.title_keywords):
+        if any(matches_word(kw, title) for kw in track.title_keywords):
             return track.id
-        if any(_matches(kw, title) for kw in track.title_keywords_requiring_go) and mentions_go(
+        if any(matches_word(kw, title) for kw in track.title_keywords_requiring_go) and mentions_go(
             description
         ):
             return track.id
@@ -42,7 +42,7 @@ def title_track(title: str, description: str, config: Config) -> TrackId | None:
 
 def prefilter(posting: Posting, now: datetime, config: Config) -> TrackId | Dropped:
     for kw in config.ignore_title_keywords:
-        if _matches(kw, posting.title):
+        if matches_word(kw, posting.title):
             return Dropped(f"ignored title keyword: {kw}")
 
     track = title_track(posting.title, posting.description, config)
