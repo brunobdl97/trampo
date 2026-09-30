@@ -543,13 +543,13 @@ def parse_judgment(message: Message) -> Judgment | None     # None when stop_rea
 - Params: `model`; adaptive thinking; system = [rendered instructions, Base resume JSON] with `cache_control` on the last system block (the stable prefix); one user message with company, title, locations, workplace, salary and description; `output_config.format` = the JSON schema of `Judgment`.
 - A refusal becomes `needs_review` with the reason "análise recusada pelo modelo" (the caller does this in Task 14).
 
-- [ ] Tests first:
+- [x] Tests first:
   - `test_params_shape` — model, adaptive thinking, `cache_control` on the last system block, schema contains every `Judgment` field.
   - `test_prefix_identical_across_jobs` — two Jobs produce byte-identical system blocks (the cache hits).
   - `test_parse_valid_judgment`.
   - `test_parse_refusal_returns_none`.
   - `test_fit_score_out_of_range_rejected` — 11 → `ValidationError`.
-- [ ] Implement; green checks; commit `feat(judge): judge requests and parsing`.
+- [x] Implement; green checks; commit `feat(judge): judge requests and parsing`.
 
 ### Task 12: Discovery
 
