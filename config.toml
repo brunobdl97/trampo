@@ -1,0 +1,18 @@
+max_age_days = 7
+repost_days = 30
+discovery_max_searches_per_day = 10
+auto_resume_min_fit_score = 8
+ignore_title_keywords = ["frontend", "mobile", "ios", "android", "data scientist", "manager", "intern", "junior"]
+
+[[tracks]]
+id = "backend"
+name = "Backend"
+title_keywords = ["backend", "back-end", "golang", "go engineer"]
+title_keywords_requiring_go = ["software engineer"]
+emphasis = "Go, distributed systems, Kafka, PostgreSQL, fintech"
+
+[[tracks]]
+id = "agents"
+name = "Agents/Automation"
+title_keywords = ["agent engineer", "ai agent engineer", "agent ai engineer", "automation engineer"]
+emphasis = "day-to-day AI tooling, this project, backend as the foundation"

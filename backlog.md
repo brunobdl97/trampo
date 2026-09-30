@@ -203,13 +203,13 @@ emphasis = "day-to-day AI tooling, this project, backend as the foundation"
 
 `private.example/profile.toml` mirrors the owner's `private/profile.toml` shape (`accepted_contracts`, `[salary_floor]`, `[backup] dir`) with sample values.
 
-- [ ] Tests first, `tests/test_config.py`:
+- [x] Tests first, `tests/test_config.py`:
   - `test_loads_repo_config` — two Tracks, `max_age_days == 7`, `auto_resume_min_fit_score == 8`.
   - `test_missing_field_names_it` — a TOML without `repost_days` raises `ValidationError` mentioning `repost_days`.
   - `test_loads_example_profile` — `private.example/profile.toml` loads; its `[backup] dir = ""` becomes `backup_dir is None`.
   - `test_private_dir_from_env` — `private_paths({"TRAMPO_PRIVATE_DIR": "/x"}).db == Path("/x/trampo.db")`; the default is `private/`.
-- [ ] Implement `config.py` with `tomllib` and Pydantic (the profile's `[backup] dir` maps to `backup_dir`).
-- [ ] Green checks, commit `feat(config): load config, profile and private paths`.
+- [x] Implement `config.py` with `tomllib` and Pydantic (the profile's `[backup] dir` maps to `backup_dir`).
+- [x] Green checks, commit `feat(config): load config, profile and private paths`.
 
 ### Task 3: Base resume model, example Candidate and the owner's resume 👤
 

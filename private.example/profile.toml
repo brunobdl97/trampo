@@ -1,0 +1,11 @@
+# Private candidate preferences. Lives in private/, never committed.
+accepted_contracts = ["clt", "pj", "international_contractor"]
+# Minimum monthly pay per contract type.
+[salary_floor]
+clt_brl = 12000
+pj_brl = 15000
+international_usd = 4000
+[backup]
+# Windows folder synced to the cloud (OneDrive, Google Drive), seen from WSL.
+# Example: "/mnt/c/Users/<you>/OneDrive/trampo-backup"
+dir = ""
