@@ -80,6 +80,3 @@ def test_client_for_returns_greenhouse() -> None:
     client = client_for("greenhouse", httpx.Client())
     assert isinstance(client, GreenhouseClient)
     assert client.ats == "greenhouse"
-
-    with pytest.raises(NotImplementedError):
-        client_for("ashby", httpx.Client())

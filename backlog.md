@@ -426,9 +426,9 @@ Lever: `GET https://api.lever.co/v0/postings/{slug}?mode=json` → list: `id`, `
 
 Ashby: `GET https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true` → `jobs[]`: skip `isListed == false`; `id`, `title`, `jobUrl` → `url`, `location` (+ `secondaryLocations` joined) → `location`, `workplaceType` (`Remote` | `Hybrid` | `OnSite`) or `isRemote` → `workplace`, `publishedAt` → `published_at`, `descriptionPlain` → `description`, the `Salary` component of `compensation.summaryComponents` → `Salary` (interval `"1 YEAR"` → `year`).
 
-- [ ] Record the fixture from a real public Ashby board (3 jobs, one unlisted, one with compensation).
-- [ ] Tests first: `test_parses_listed_postings_only`, `test_workplace_mapping`, `test_compensation_to_salary`, `test_404_raises_board_not_found`.
-- [ ] Implement; green checks; commit `feat(ats): Ashby client`.
+- [x] Record the fixture from a real public Ashby board (3 jobs, one unlisted, one with compensation).
+- [x] Tests first: `test_parses_listed_postings_only`, `test_workplace_mapping`, `test_compensation_to_salary`, `test_404_raises_board_not_found`.
+- [x] Implement; green checks; commit `feat(ats): Ashby client`.
 
 ### Task 8: Pre-filter
 

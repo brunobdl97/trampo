@@ -159,6 +159,3 @@ def test_client_for_returns_lever() -> None:
     client = client_for("lever", httpx.Client())
     assert isinstance(client, LeverClient)
     assert client.ats == "lever"
-
-    with pytest.raises(NotImplementedError):
-        client_for("ashby", httpx.Client())
