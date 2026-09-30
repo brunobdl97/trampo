@@ -416,9 +416,9 @@ Greenhouse: `GET https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=
 
 Lever: `GET https://api.lever.co/v0/postings/{slug}?mode=json` → list: `id`, `text` → `title`, `hostedUrl` → `url`, `categories.location` → `location`, `workplaceType` (`remote` | `hybrid` | `on-site` | `unspecified`) → `remote` / `hybrid` / `onsite` / `None`, `createdAt` (epoch milliseconds) → `published_at`, `descriptionPlain` + each `lists[].text` + `html_to_text(lists[].content)` + `additionalPlain` → `description`, `salaryRange {min, max, currency, interval}` → `Salary`. EU-instance boards (`api.eu.lever.co`) are out of scope for now.
 
-- [ ] Record the fixture from a real public Lever board (3 postings, one with `salaryRange`, one `hybrid`).
-- [ ] Tests first: `test_parses_postings`, `test_workplace_mapping` (all four values), `test_created_at_millis_to_utc`, `test_salary_range`, `test_404_raises_board_not_found`.
-- [ ] Implement; green checks; commit `feat(ats): Lever client`.
+- [x] Record the fixture from a real public Lever board (3 postings, one with `salaryRange`, one `hybrid`).
+- [x] Tests first: `test_parses_postings`, `test_workplace_mapping` (all four values), `test_created_at_millis_to_utc`, `test_salary_range`, `test_404_raises_board_not_found`.
+- [x] Implement; green checks; commit `feat(ats): Lever client`.
 
 ### Task 7: Ashby client
 

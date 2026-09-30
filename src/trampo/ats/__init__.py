@@ -30,6 +30,10 @@ def client_for(ats: Ats, http: httpx.Client) -> AtsClient:
         from trampo.ats.greenhouse import GreenhouseClient
 
         return GreenhouseClient(http)
+    if ats == "lever":
+        from trampo.ats.lever import LeverClient
+
+        return LeverClient(http)
     raise NotImplementedError(f"ATS client not implemented yet: {ats}")
 
 

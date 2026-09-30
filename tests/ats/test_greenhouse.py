@@ -82,4 +82,4 @@ def test_client_for_returns_greenhouse() -> None:
     assert client.ats == "greenhouse"
 
     with pytest.raises(NotImplementedError):
-        client_for("lever", httpx.Client())
+        client_for("ashby", httpx.Client())
