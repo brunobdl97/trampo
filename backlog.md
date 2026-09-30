@@ -733,7 +733,7 @@ Routes (all UI text in pt-BR):
 
 Vendor pinned versions of htmx and Pico.css into `static/` (both permissively licensed; keep their license headers). CLI: `trampo serve [--port 8765]` runs uvicorn on host `127.0.0.1`.
 
-- [ ] Tests first (FastAPI `TestClient`):
+- [x] Tests first (FastAPI `TestClient`):
   - `test_index_lists_jobs_in_portuguese`.
   - `test_filters`.
   - `test_status_change_persists`.
@@ -741,9 +741,9 @@ Vendor pinned versions of htmx and Pico.css into `static/` (both permissively li
   - `test_new_since_last_visit_highlighted_once`.
   - `test_resume_path_traversal_blocked` — `/resumes/..%2Fprofile.toml` → 404.
   - `test_serve_binds_localhost`.
-- [ ] Implement; green checks.
-- [ ] 👤 Run `trampo serve` on the owner's data and ask for feedback on the page.
-- [ ] Commit `feat(web): local Job page`.
+- [x] Implement; green checks.
+- [x] 👤 Run `trampo serve` on the owner's data and ask for feedback on the page.
+- [x] Commit `feat(web): local Job page`.
 
 ### Task 18: Backup
 

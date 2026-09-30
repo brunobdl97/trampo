@@ -1,10 +1,11 @@
 import sqlite3
+import threading
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
-from trampo.models import BoardRef, Judgment, Posting
+from trampo.models import BoardRef, Judgment, Posting, Salary
 from trampo.store import Store
 
 NOW = datetime(2026, 9, 29, 12, 0, tzinfo=UTC)
@@ -297,3 +298,50 @@ def test_backup_to_while_open(db_path: Path, tmp_path: Path) -> None:
 
     assert len(jobs) == 1
     assert jobs[0].company == "Acme"
+
+
+def test_job_row_derives_workplace_published_at_salary(db_path: Path) -> None:
+    store = Store(db_path)
+    run_id = store.start_run(NOW)
+    job_id = store.create_job("Acme", "Backend Engineer", "backend engineer", run_id, NOW)
+    earlier = NOW - timedelta(days=2)
+    later = NOW + timedelta(days=1)
+    salary = Salary(min=8000, max=12000, currency="BRL", interval="month")
+
+    store.upsert_posting(
+        _posting(posting_id="p1", workplace="onsite", salary=salary, published_at=earlier),
+        job_id,
+        earlier,
+    )
+    store.upsert_posting(
+        _posting(posting_id="p2", workplace="remote", salary=None, published_at=later),
+        job_id,
+        later,
+    )
+
+    job = store.job(job_id).job
+    store.close()
+
+    assert job.workplace == "remote"  # the most recently seen Posting's
+    assert job.salary == salary  # only p1 (the older one) has one
+    assert job.published_at == earlier  # earliest non-null among the Postings
+
+
+def test_store_usable_from_another_thread(db_path: Path) -> None:
+    """R20: the web page shares one Store across FastAPI's worker threads."""
+    store = Store(db_path)
+    errors: list[Exception] = []
+
+    def add_board() -> None:
+        try:
+            store.add_board(BoardRef(ats="greenhouse", slug="acme"), "Acme", NOW)
+        except Exception as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(target=add_board)
+    thread.start()
+    thread.join()
+
+    assert errors == []
+    assert store.active_boards() == [(BoardRef(ats="greenhouse", slug="acme"), "Acme")]
+    store.close()

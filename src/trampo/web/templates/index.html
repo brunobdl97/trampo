@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Vagas</h1>
+
+<form method="get" action="/">
+  <fieldset class="grid">
+    <label>Status
+      <select name="status">
+        <option value="" {% if not status %}selected{% endif %}>Todos</option>
+        {% for value, label in status_options %}
+        <option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Track
+      <select name="track">
+        <option value="" {% if not track %}selected{% endif %}>Todos</option>
+        {% for value, label in track_options %}
+        <option value="{{ value }}" {% if value == track %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Empresa
+      <input type="text" name="company" value="{{ company }}">
+    </label>
+    <label>Desde
+      <input type="date" name="since" value="{{ since }}">
+    </label>
+  </fieldset>
+  <button type="submit">Filtrar</button>
+</form>
+
+<div id="jobs">
+{% for job, highlighted in rows %}
+  {% include "_job_row.html" %}
+{% else %}
+  <p>Nenhuma vaga encontrada.</p>
+{% endfor %}
+</div>
+{% endblock %}

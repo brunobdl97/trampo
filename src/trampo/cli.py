@@ -5,11 +5,13 @@ import logging
 import os
 import sys
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
 
 import httpx2
+import uvicorn
 
 from trampo.ats import client_for
 from trampo.claude import SpendLimitReached, make_client
@@ -20,6 +22,7 @@ from trampo.resume import load_resume
 from trampo.resume.render import html_to_pdf, render_html
 from trampo.resume.tailor import InventedFactsError, TailorRefused, tailor_now
 from trampo.store import JobNotFound, Store
+from trampo.web import MissingApiKey, create_app
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +38,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     resume_parser.add_argument("--base", action="store_true", help="render the Base resume")
     resume_parser.add_argument("--lang", choices=["en", "pt"], default="en")
+    serve_parser = commands.add_parser("serve", help="local Job page (UI in pt-BR), 127.0.0.1 only")
+    serve_parser.add_argument("--port", type=int, default=8765)
     return parser
 
 
@@ -147,6 +152,33 @@ def _tailor(job_id: int) -> int:
     return 0
 
 
+def _serve_tailor(ctx: RunContext) -> Callable[[int], Path]:
+    """The `tailor` callable `trampo serve` passes to create_app: tailor_now(ctx,
+    job_id), but a missing ANTHROPIC_API_KEY raises a friendly error instead of
+    the SDK's — `trampo serve` itself starts fine without any env var, this is
+    only checked when the Candidate clicks "Gerar currículo"."""
+
+    def tailor(job_id: int) -> Path:
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            raise MissingApiKey("ANTHROPIC_API_KEY não configurada (private/.env)")
+        return tailor_now(ctx, job_id)
+
+    return tailor
+
+
+def _serve(args: argparse.Namespace) -> int:
+    paths = private_paths()
+    with _http() as http:
+        # Telegram is part of a RunContext but never used here: the page never sends messages.
+        ctx = _context(paths, http, Telegram(http, "", ""))
+        try:
+            app = create_app(ctx.store, paths, _serve_tailor(ctx), lambda: datetime.now(UTC))
+            uvicorn.run(app, host="127.0.0.1", port=args.port)
+        finally:
+            ctx.store.close()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -154,6 +186,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run()
     if args.command == "resume":
         return _resume(args)
+    if args.command == "serve":
+        return _serve(args)
     parser.print_help()
     return 1
 

@@ -195,3 +195,24 @@ def test_resume_job_refused_by_model(
     assert "refused" in captured.err
     assert captured.out == ""
     assert not (private_dir / "resumes").exists()
+
+
+def test_serve_binds_localhost(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`trampo serve` starts without any env var (Task 17 ruling) and binds
+    127.0.0.1 only (CLAUDE.md). uvicorn.run is faked so nothing actually listens."""
+    private_dir = tmp_path / "private"
+    shutil.copytree("private.example", private_dir)
+    monkeypatch.setenv("TRAMPO_PRIVATE_DIR", str(private_dir))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    captured: dict[str, object] = {}
+
+    def fake_run(app: object, *, host: str, port: int) -> None:
+        captured["host"] = host
+        captured["port"] = port
+
+    monkeypatch.setattr(cli.uvicorn, "run", fake_run)
+
+    assert main(["serve"]) == 0
+
+    assert captured["host"] == "127.0.0.1"
+    assert captured["port"] == 8765

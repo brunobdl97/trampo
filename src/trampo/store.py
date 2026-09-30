@@ -61,7 +61,10 @@ class JobNotFound(LookupError):
 
 class Store:
     def __init__(self, path: Path) -> None:
-        self._conn = sqlite3.connect(path)
+        # check_same_thread=False: the web page (Task 17) shares one Store across
+        # FastAPI's worker threads; sqlite3.threadsafety == 3 here, so a single
+        # connection used from multiple threads (never concurrently) is safe.
+        self._conn = sqlite3.connect(path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.execute("PRAGMA journal_mode = WAL")
@@ -335,6 +338,20 @@ class Store:
         for posting in postings:
             if posting.location is not None and posting.location not in locations:
                 locations.append(posting.location)
+        # Most recently seen Posting first, for workplace/salary (Task 17, ruling R21).
+        by_recency = sorted(
+            zip(posting_rows, postings, strict=True),
+            key=lambda pair: pair[0]["last_seen_at"],
+            reverse=True,
+        )
+        workplace = by_recency[0][1].workplace if by_recency else None
+        salary = next(
+            (posting.salary for _, posting in by_recency if posting.salary is not None), None
+        )
+        published_at = min(
+            (posting.published_at for posting in postings if posting.published_at is not None),
+            default=None,
+        )
         job_row = JobRow(
             id=row["id"],
             company=row["company"],
@@ -352,6 +369,9 @@ class Store:
             status=row["status"],
             notes=row["notes"],
             resume_path=row["resume_path"],
+            workplace=workplace,
+            published_at=published_at,
+            salary=salary,
             locations=locations,
             urls=[posting.url for posting in postings],
         )

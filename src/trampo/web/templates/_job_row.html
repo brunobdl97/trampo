@@ -1,0 +1,76 @@
+<article id="job-{{ job.id }}" class="job-row">
+  {% if highlighted %}<p><mark>Novidade</mark></p>{% endif %}
+  {% if error %}<p><mark>{{ error }}</mark></p>{% endif %}
+
+  <header>
+    <strong>{{ job.company }}</strong> — {{ job.title }}
+    · <span>{{ job.track | track_label }}</span>
+  </header>
+
+  <p>
+    {% for url in job.urls %}<a href="{{ url }}" target="_blank" rel="noopener">Ver vaga</a>{% if not loop.last %} · {% endif %}{% endfor %}
+  </p>
+
+  <p>
+    {% if job.locations %}{{ job.locations | join(", ") }}{% endif %}
+    {% if job.workplace %} · {{ job.workplace | workplace_label }}{% endif %}
+  </p>
+
+  <p>
+    Publicada em {{ job.published_at | br_date }}
+    {% if job.salary %} · {{ job.salary | br_salary }}{% endif %}
+  </p>
+
+  <p>
+    <strong>Verdict:</strong> {{ job.verdict | verdict_label }}
+    {% if job.verdict_reason %} — {{ job.verdict_reason }}{% endif %}
+  </p>
+  <p>
+    {% if job.fit_score is not none %}
+    <strong>Fit {{ job.fit_score }}/10</strong>
+    {% if job.fit_reason %} — {{ job.fit_reason }}{% endif %}
+    {% endif %}
+  </p>
+
+  <form hx-post="/jobs/{{ job.id }}/status" hx-target="#job-{{ job.id }}" hx-swap="outerHTML">
+    <label>Status
+      <select name="status" onchange="this.form.requestSubmit()">
+        {% for value, label in status_options %}
+        <option value="{{ value }}" {% if value == job.status %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+
+  <form hx-post="/jobs/{{ job.id }}/notes" hx-target="#job-{{ job.id }}" hx-swap="outerHTML">
+    <label>Notas
+      <textarea name="notes" rows="2">{{ job.notes }}</textarea>
+    </label>
+    <button type="submit">Salvar notas</button>
+  </form>
+
+  <details>
+    <summary>Corrigir Verdict</summary>
+    <form hx-post="/jobs/{{ job.id }}/override" hx-target="#job-{{ job.id }}" hx-swap="outerHTML">
+      <label>Novo Verdict
+        <select name="verdict">
+          {% for value, label in verdict_options %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Motivo (obrigatório)
+        <input type="text" name="reason" required>
+      </label>
+      <button type="submit">Aplicar correção</button>
+    </form>
+  </details>
+
+  {% if job.resume_path %}
+    <a href="/resumes/{{ job.resume_path | basename }}" role="button">Baixar currículo (PDF)</a>
+  {% else %}
+    <button hx-post="/jobs/{{ job.id }}/resume" hx-target="#job-{{ job.id }}" hx-swap="outerHTML">
+      Gerar currículo
+    </button>
+  {% endif %}
+</article>
