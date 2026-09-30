@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "result": {
+    "message_id": 123,
+    "chat": {
+      "id": 987654321,
+      "type": "private"
+    },
+    "date": 1735689600,
+    "text": "Trampo: 1 vaga(s) nova(s)"
+  }
+}

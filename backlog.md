@@ -597,12 +597,12 @@ class Telegram:
 
 One line per Job: company, title, Track, Fit score, link to the Posting. A final line with the `needs_review` and `rejected` counts.
 
-- [ ] Tests first:
+- [x] Tests first:
   - `test_escapes_html` — a title like "C++ & Go <Senior>" is escaped.
   - `test_splits_long_digest` — 80 Jobs → several messages, each ≤ 4096 characters, no Job split across two.
   - `test_counts_line`.
   - `test_send_posts_expected_payload` — MockTransport asserts the URL, `chat_id`, `parse_mode`.
-- [ ] Implement; green checks; commit `feat(digest): Telegram Digest`.
+- [x] Implement; green checks; commit `feat(digest): Telegram Digest`.
 
 ### Task 14: The Run pipeline (`trampo run`)
 
