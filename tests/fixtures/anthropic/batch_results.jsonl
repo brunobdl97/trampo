@@ -1,0 +1,4 @@
+{"custom_id": "job-4-expired", "result": {"type": "expired"}}
+{"custom_id": "job-1-succeeded", "result": {"type": "succeeded", "message": {"id": "msg_01abc", "type": "message", "role": "assistant", "model": "claude-opus-5-20260201", "content": [{"type": "text", "text": "Fit score: 8"}], "stop_reason": "end_turn", "stop_sequence": null, "usage": {"input_tokens": 100, "output_tokens": 20}}}}
+{"custom_id": "job-3-canceled", "result": {"type": "canceled"}}
+{"custom_id": "job-2-errored", "result": {"type": "errored", "error": {"type": "error", "error": {"type": "invalid_request_error", "message": "max_tokens: 999999999 is too large"}, "request_id": "req_err"}}}

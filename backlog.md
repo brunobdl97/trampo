@@ -517,13 +517,13 @@ def batch_results(client: anthropic.Anthropic, batch_id: str) -> dict[str, Messa
 
 Every API call made through this module translates the "spend limit reached" API error into `SpendLimitReached`. Find out from the skill's error docs how the API reports a workspace spend limit, and record that response as a fixture.
 
-- [ ] Tests first:
+- [x] Tests first:
   - `test_newest_opus_picks_latest_created` — a mocked models list with two Opus models and one Sonnet.
   - `test_prompt_hash_stable` — the same file gives the same 12-character hash.
   - `test_batch_results_none_while_processing`.
   - `test_batch_results_keyed_by_custom_id` — results in shuffled order.
   - `test_spend_limit_maps_to_exception` — Review Focus 2.
-- [ ] Implement; green checks; commit `feat(claude): client, model resolution, prompts and batches`.
+- [x] Implement; green checks; commit `feat(claude): client, model resolution, prompts and batches`.
 
 ### Task 11: Judge
 
