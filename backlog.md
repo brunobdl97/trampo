@@ -237,10 +237,10 @@ def load_resume(path: Path) -> Resume
 
 Dates are `YYYY-MM` or `YYYY-MM-DD` (validator).
 
-- [ ] Tests first: `test_example_resume_loads`; `test_missing_name_fails`; `test_bad_date_fails` (`"12/2024"` → `ValidationError`).
-- [ ] Implement the model; write `private.example/resume.json` for the fictional "Alex Silva, Backend Engineer" (fake email, phone and companies).
-- [ ] 👤 Convert the owner's CV: extract text with `uvx --from pypdf python -c "…"` from `private/CV_Bruno_Diego_Lima_de_Oliveira.pdf` (the text comes one word per line — rejoin it), write `private/resume.json`, check that `load_resume` accepts it, then show the owner a readable summary and apply their corrections. Ask whether to add this project as a `projects` entry. **Do not continue until the owner approves.** Never commit this file.
-- [ ] Green checks, commit `feat(resume): Base resume model and example Candidate`.
+- [x] Tests first: `test_example_resume_loads`; `test_missing_name_fails`; `test_bad_date_fails` (`"12/2024"` → `ValidationError`).
+- [x] Implement the model; write `private.example/resume.json` for the fictional "Alex Silva, Backend Engineer" (fake email, phone and companies).
+- [x] 👤 Convert the owner's CV: extract text with `uvx --from pypdf python -c "…"` from `private/CV_Bruno_Diego_Lima_de_Oliveira.pdf` (the text comes one word per line — rejoin it), write `private/resume.json`, check that `load_resume` accepts it, then show the owner a readable summary and apply their corrections. Ask whether to add this project as a `projects` entry. **Do not continue until the owner approves.** Never commit this file.
+- [x] Green checks, commit `feat(resume): Base resume model and example Candidate`.
 
 ### Task 4: Domain models and Store
 

@@ -1,0 +1,82 @@
+{
+  "basics": {
+    "name": "Alex Silva",
+    "label": "Backend Engineer",
+    "email": "alex.silva@example.com",
+    "phone": "+55 11 91234-5678",
+    "summary": "Backend engineer with 6 years building high-throughput APIs and data pipelines in Python and Go, mostly for fintech and logistics companies.",
+    "location": {
+      "city": "São Paulo",
+      "countryCode": "BR"
+    },
+    "profiles": [
+      { "network": "GitHub", "url": "https://github.com/alexsilva-example" },
+      { "network": "LinkedIn", "url": "https://linkedin.com/in/alexsilva-example" }
+    ]
+  },
+  "work": [
+    {
+      "name": "Nortech Pagamentos",
+      "position": "Senior Backend Engineer",
+      "startDate": "2022-03",
+      "endDate": null,
+      "summary": "Payments platform team, owns the settlement service.",
+      "highlights": [
+        "Redesigned the settlement pipeline, cutting p99 latency by 42% and reducing infra cost by 18%",
+        "Migrated 12 microservices from Flask to FastAPI, improving throughput by 30%",
+        "Introduced contract tests that cut production incidents from partner integrations by 60%"
+      ]
+    },
+    {
+      "name": "Rotamais Logística",
+      "position": "Backend Engineer",
+      "startDate": "2019-06",
+      "endDate": "2022-02",
+      "summary": "Route optimization and tracking services.",
+      "highlights": [
+        "Built a route-optimization API handling 50k requests/day with 99.95% uptime",
+        "Reduced average delivery-ETA error by 25% by reworking the estimation model's data pipeline",
+        "Led migration of the tracking database from PostgreSQL to a sharded setup, supporting 3x traffic growth"
+      ]
+    },
+    {
+      "name": "Devlar Software",
+      "position": "Junior Backend Developer",
+      "startDate": "2017-01",
+      "endDate": "2019-05",
+      "summary": "Consultancy building internal tools for retail clients.",
+      "highlights": [
+        "Delivered 8 internal REST APIs for inventory management across 4 client projects",
+        "Cut report-generation time by 70% by replacing nightly batch jobs with incremental updates"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universidade de São Paulo",
+      "area": "Computer Science",
+      "studyType": "Bachelor",
+      "startDate": "2013-02",
+      "endDate": "2016-12"
+    }
+  ],
+  "skills": [
+    { "name": "Backend", "keywords": ["Python", "Go", "FastAPI", "Flask", "PostgreSQL", "Redis"] },
+    { "name": "Infrastructure", "keywords": ["Docker", "Kubernetes", "AWS", "Terraform"] },
+    { "name": "Practices", "keywords": ["TDD", "CI/CD", "Event-driven architecture"] }
+  ],
+  "languages": [
+    { "language": "Portuguese", "fluency": "Native" },
+    { "language": "English", "fluency": "Fluent" }
+  ],
+  "projects": [
+    {
+      "name": "queuewatch",
+      "description": "Open-source CLI that monitors RabbitMQ queue depth and alerts via webhook when backlogs grow past a threshold.",
+      "highlights": [
+        "Adopted by 3 companies beyond the author's own, per GitHub stars and issues"
+      ],
+      "url": "https://github.com/alexsilva-example/queuewatch"
+    }
+  ]
+}
