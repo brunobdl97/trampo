@@ -784,8 +784,8 @@ It re-judges every overridden Job with the current prompt and model (regular cal
 
 - [ ] 👤 The owner creates an Anthropic API key and sets the workspace **spend limit to US$ 30/month** in the Console.
 - [ ] 👤 The owner creates a Telegram bot with @BotFather and gets the chat ID; fills in `private/.env` (`ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`).
-- [ ] Write `private.example/.env.example` with the three names and empty values.
-- [ ] README "Running it": `uv sync`, `uv run playwright install chromium`, copying `private.example/` to `private/`, the `.env` variables, the commands, and the Windows Task Scheduler setup. Get the distro name from `wsl -l -v`; `bash -lc` puts uv on PATH. In PowerShell:
+- [x] Write `private.example/.env.example` with the three names and empty values.
+- [x] README "Running it": `uv sync`, `uv run playwright install chromium`, copying `private.example/` to `private/`, the `.env` variables, the commands, and the Windows Task Scheduler setup. Get the distro name from `wsl -l -v`; `bash -lc` puts uv on PATH. In PowerShell:
 
   ```powershell
   $run = New-ScheduledTaskAction -Execute "wsl.exe" -Argument "-d <distro> --cd ~/projects/trampo -- bash -lc 'uv run --env-file private/.env trampo run'"
@@ -799,7 +799,7 @@ It re-judges every overridden Job with the current prompt and model (regular cal
 
 - [ ] 👤 First real Run by hand with the owner watching: Discovery finds Boards, the Digest arrives, the page shows the Jobs, and a Tailored resume PDF looks right.
 - [ ] 👤 The owner sets `[backup] dir` in `private/profile.toml`.
-- [ ] Green checks, commit `docs: setup and scheduling`.
+- [x] Green checks, commit `docs: setup and scheduling`.
 - [ ] 👤 When the owner says so: create the public GitHub repo and push.
 
 ---
