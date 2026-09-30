@@ -104,7 +104,12 @@ def test_discovery_queries_deterministic_and_no_duplicates() -> None:
     assert first == second  # deterministic
     assert len(first) == len(set(first))  # no duplicates
     assert len(first) == 3 * 3 * 3  # 3 domains x 3 remote terms x 3 unique keywords
-    assert first[0] == 'site:jobs.ashbyhq.com "backend" remote'
+    # the domain varies fastest, so the first days' searches cover every ATS
+    assert first[:3] == [
+        'site:jobs.ashbyhq.com "backend" remote',
+        'site:job-boards.greenhouse.io "backend" remote',
+        'site:jobs.lever.co "backend" remote',
+    ]
     # the bare "boards.greenhouse.io" host is never queried, only "job-boards.greenhouse.io"
     assert all(not q.startswith('site:boards.greenhouse.io "') for q in first)
 
@@ -141,11 +146,11 @@ def test_invalid_board_not_added(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 
     lever = _FakeAtsClient("lever", raises=BoardNotFound)
     added = discover(_client(handler), store, config, {"lever": lever}, TODAY, "claude-opus-5")
-    known = store.known_boards()
+    boards = store.active_boards()
     store.close()
 
     assert added == []
-    assert known == set()
+    assert boards == []
     assert lever.calls == [("acme-corp", "Acme Corp")]
 
 
@@ -160,14 +165,12 @@ def test_new_board_validated_and_added(monkeypatch: pytest.MonkeyPatch, tmp_path
 
     lever = _FakeAtsClient("lever")  # does not raise -> validation succeeds
     added = discover(_client(handler), store, config, {"lever": lever}, TODAY, "claude-opus-5")
-    known = store.known_boards()
     boards = store.active_boards()
     searched_today = store.discovery_searches_on(TODAY)
     store.close()
 
     expected = BoardRef(ats="lever", slug="acme-corp")
     assert added == [expected]
-    assert expected in known
     assert boards == [(expected, "Acme Corp")]
     assert searched_today == 1
 
@@ -193,6 +196,53 @@ def test_known_board_not_duplicated(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     assert added == []
     assert boards == [(known_ref, "Acme Corp")]
     assert greenhouse.calls == []  # a known board is never re-validated
+
+
+def test_inactive_board_found_again_is_reactivated(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    config = _config(searches_per_day=1)
+    store = Store(tmp_path / "trampo.db")
+    ref = BoardRef(ats="lever", slug="acme-corp")
+    store.add_board(ref, "Acme Corp", NOW)
+    store.deactivate_board(ref)  # one 404 on a past Run
+    fixture = json.loads((FIXTURES / "discovery_new_board.json").read_text())
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=fixture)
+
+    lever = _FakeAtsClient("lever")  # validates again
+    added = discover(_client(handler), store, config, {"lever": lever}, TODAY, "claude-opus-5")
+    boards = store.active_boards()
+    store.close()
+
+    assert added == [ref]
+    assert boards == [(ref, "Acme Corp")]
+    assert lever.calls == [("acme-corp", "Acme Corp")]
+
+
+def test_unexpected_validation_error_skips_only_that_board(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    config = _config(searches_per_day=2)
+    store = Store(tmp_path / "trampo.db")
+    fixture = json.loads((FIXTURES / "discovery_new_board.json").read_text())
+    calls: list[httpx2.Request] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        calls.append(request)
+        return httpx2.Response(200, json=fixture)
+
+    lever = _FakeAtsClient("lever", raises=ValueError)  # an odd, unparseable response
+    added = discover(_client(handler), store, config, {"lever": lever}, TODAY, "claude-opus-5")
+    boards = store.active_boards()
+    store.close()
+
+    assert added == []
+    assert boards == []
+    assert len(calls) == 2  # the day's other search still ran
 
 
 def test_web_search_error_result_is_skipped(

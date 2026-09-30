@@ -8,22 +8,27 @@ event loop. The Store's sqlite3 connection is opened with
 worker threads.
 """
 
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, cast, get_args
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from trampo.claude import SpendLimitReached
 from trampo.config import Paths, TrackId
+from trampo.digest import TRACK_LABELS
 from trampo.models import JobRow, Salary, StatusValue, VerdictValue
 from trampo.resume.tailor import InventedFactsError, TailorRefused
 from trampo.store import JobNotFound, Store
+
+logger = logging.getLogger(__name__)
 
 _PACKAGE_DIR = Path(__file__).parent
 _TZ = ZoneInfo("America/Sao_Paulo")
@@ -40,7 +45,6 @@ _VERDICT_LABELS: dict[str, str] = {
     "needs_review": "revisar",
     "rejected": "rejeitada",
 }
-_TRACK_LABELS: dict[str, str] = {"backend": "Backend", "agents": "Agentes/Automação"}
 _WORKPLACE_LABELS = {"remote": "Remoto", "hybrid": "Híbrido", "onsite": "Presencial"}
 _INTERVAL_LABELS = {"year": "ano", "month": "mês", "hour": "hora"}
 
@@ -80,23 +84,35 @@ def _basename(path: str | None) -> str | None:
     return Path(path).name if path is not None else None
 
 
+def _require_htmx(request: Request) -> None:
+    """Every POST comes from the page's own htmx, which sends HX-Request: a
+    plain form post from another origin can't add that header (CSRF)."""
+    if request.method == "POST" and request.headers.get("HX-Request") != "true":
+        raise HTTPException(403, "requisição recusada")
+
+
 def create_app(
     store: Store, paths: Paths, tailor: Callable[[int], Path], now: Callable[[], datetime]
 ) -> FastAPI:
-    app = FastAPI()
+    app = FastAPI(dependencies=[Depends(_require_htmx)])
+    # DNS rebinding: a page on another name resolving to 127.0.0.1 gets a 400.
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
     app.mount("/static", StaticFiles(directory=_PACKAGE_DIR / "static"), name="static")
     templates = Jinja2Templates(directory=_PACKAGE_DIR / "templates")
     env = templates.env
     env.filters["status_label"] = _label(_STATUS_LABELS)
     env.filters["verdict_label"] = _label(_VERDICT_LABELS)
-    env.filters["track_label"] = _label(_TRACK_LABELS)
+    env.filters["track_label"] = _label(TRACK_LABELS)
     env.filters["workplace_label"] = _label(_WORKPLACE_LABELS)
     env.filters["br_date"] = _br_date
     env.filters["br_salary"] = _br_salary
     env.filters["basename"] = _basename
     env.globals["status_options"] = list(_STATUS_LABELS.items())
-    env.globals["track_options"] = list(_TRACK_LABELS.items())
-    env.globals["verdict_options"] = list(_VERDICT_LABELS.items())
+    env.globals["track_options"] = list(TRACK_LABELS.items())
+    # An Override sets a real Verdict; `pending` only means "not judged yet".
+    env.globals["verdict_options"] = [
+        (value, label) for value, label in _VERDICT_LABELS.items() if value != "pending"
+    ]
 
     def _row(
         request: Request,
@@ -211,6 +227,14 @@ def create_app(
             )
         except MissingApiKey as exc:
             return _row(request, job, highlighted=False, error=str(exc))
+        except Exception:  # never a bare 500: htmx would leave the row as it was
+            logger.exception("Tailored resume for Job %d failed", job_id)
+            return _row(
+                request,
+                job,
+                highlighted=False,
+                error="Não foi possível gerar o currículo (erro inesperado).",
+            )
         return _row(request, store.job(job_id).job, highlighted=False)
 
     @app.get("/resumes/{filename}")

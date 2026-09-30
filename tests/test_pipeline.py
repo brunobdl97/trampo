@@ -527,6 +527,24 @@ def test_spend_cap_alert_failure_does_not_stop_the_run(ctx: RunContext, fakes: _
     assert outcome == "ok"
 
 
+def test_digest_send_failure_does_not_stop_the_run(
+    ctx: RunContext, fakes: _Fakes, tmp_path: Path
+) -> None:
+    fakes.result = _succeeded(BEST_MATCH)
+    fakes.telegram_down = True
+    ctx.profile.backup_dir = tmp_path / "backup"
+
+    summary = run(ctx)
+
+    job = ctx.store.job(_job_id(ctx, GITLAB_POSTING)).job
+    assert summary.eligible == 1
+    assert len(fakes.batches) == 2  # the resume batch still went out...
+    assert job.resume_path is not None
+    assert (tmp_path / "backup" / "trampo.db").exists()  # ...and the backup ran
+    outcome = _row(ctx, "SELECT outcome FROM runs WHERE id = ?", summary.run_id)["outcome"]
+    assert outcome == "ok"
+
+
 def test_auto_only_for_eligible_at_threshold(ctx: RunContext, fakes: _Fakes) -> None:
     _add_acme(ctx, fakes)
     _add_board(ctx, fakes, "globex", "Globex", GLOBEX_POSTING, "Senior Backend Engineer")

@@ -29,7 +29,7 @@ Applying stays human-in-the-loop: ATS submit APIs only accept employer credentia
 
    ```bash
    uv sync
-   uv run playwright install chromium
+   uv run playwright install --with-deps chromium
    ```
 
 2. **Private data** lives in a gitignored `private/` folder, seeded from `private.example/`:
@@ -60,16 +60,18 @@ Applying stays human-in-the-loop: ATS submit APIs only accept employer credentia
 5. **Scheduling on Windows:** Task Scheduler starts both inside WSL2. Get `<distro>` from `wsl -l -v`; `bash -lc` puts `uv` on PATH.
 
    ```powershell
-   $run = New-ScheduledTaskAction -Execute "wsl.exe" -Argument "-d <distro> --cd ~/projects/trampo -- bash -lc 'uv run --env-file private/.env trampo run'"
+   $run = New-ScheduledTaskAction -Execute "wsl.exe" -Argument "-d <distro> -- bash -lc 'cd ~/projects/trampo && uv run --env-file private/.env trampo run'"
    Register-ScheduledTask -TaskName "trampo-run" -Action $run `
      -Trigger (New-ScheduledTaskTrigger -Daily -At 8am) `
      -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)
 
-   $serve = New-ScheduledTaskAction -Execute "wsl.exe" -Argument "-d <distro> --cd ~/projects/trampo -- bash -lc 'uv run --env-file private/.env trampo serve'"
+   $serve = New-ScheduledTaskAction -Execute "wsl.exe" -Argument "-d <distro> -- bash -lc 'cd ~/projects/trampo && uv run --env-file private/.env trampo serve'"
    Register-ScheduledTask -TaskName "trampo-serve" -Action $serve -Trigger (New-ScheduledTaskTrigger -AtLogOn)
    ```
 
    `-StartWhenAvailable` runs a missed 08:00 Run as soon as the PC is next on.
+
+   Check it once: `Start-ScheduledTask trampo-run`, then confirm a new line in `private/logs/`.
 
 6. **Where things go:** `private/logs/YYYY-MM-DD.log`, `private/resumes/`, `private/trampo.db`.
 

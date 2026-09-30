@@ -69,7 +69,7 @@
   {% if job.resume_path %}
     <a href="/resumes/{{ job.resume_path | basename }}" role="button">Baixar currículo (PDF)</a>
   {% else %}
-    <button hx-post="/jobs/{{ job.id }}/resume" hx-target="#job-{{ job.id }}" hx-swap="outerHTML">
+    <button hx-post="/jobs/{{ job.id }}/resume" hx-target="#job-{{ job.id }}" hx-swap="outerHTML" hx-disabled-elt="this">
       Gerar currículo
     </button>
   {% endif %}

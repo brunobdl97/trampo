@@ -73,7 +73,7 @@ class JobRow(BaseModel):
     notes: str
     resume_path: str | None
     workplace: Workplace | None = None  # the most recently seen Posting's
-    published_at: datetime | None = None  # earliest non-null among its Postings
+    published_at: datetime | None = None  # earliest among its Postings, else first seen
     salary: Salary | None = None  # the most recently seen Posting that has one
     locations: list[str]  # from its Postings
     urls: list[str]  # from its Postings

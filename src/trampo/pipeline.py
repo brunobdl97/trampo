@@ -50,12 +50,11 @@ from trampo.resume.tailor import (
     save_tailored,
     tailor_params,
 )
-from trampo.store import Store
+from trampo.store import CLOSED_REASON, Store
 
 logger = logging.getLogger(__name__)
 
 REFUSAL_REASON = "análise recusada pelo modelo"
-CLOSED_REASON = "vaga encerrada"
 
 
 @dataclass
@@ -121,9 +120,10 @@ def run(ctx: RunContext) -> RunSummary:
         _tally(summary, judged)
         jobs = [ctx.store.job(job_id).job for job_id, v in judged.items() if v == "eligible"]
         eligible = [job for job in jobs if job.closed_at is None]
+        # A Telegram failure is logged and the Run goes on (Tailored resumes, backup).
         if eligible:
             for message in format_digest(eligible, summary.needs_review, summary.rejected):
-                ctx.telegram.send(message)
+                send_alert(ctx.telegram, message)
 
         # 8a. Automatic Tailored resumes, in their own batch after the Digest.
         if model is not None and spend_limit is None:
@@ -159,12 +159,13 @@ def run(ctx: RunContext) -> RunSummary:
 
 
 def send_alert(telegram: Telegram, text: str) -> None:
-    """Send a Telegram alert; a Telegram failure is logged, never raised, so it
-    neither stops the Run nor masks the error being reported."""
+    """Send a Telegram message (an alert or a Digest part); a Telegram failure is
+    logged, never raised, so it neither stops the Run nor masks the error being
+    reported."""
     try:
         telegram.send(text)
     except TelegramError:
-        logger.exception("Could not send a Telegram alert")
+        logger.exception("Could not send a Telegram message")
 
 
 def _recover(ctx: RunContext, judged: dict[int, VerdictValue]) -> None:

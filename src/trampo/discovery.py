@@ -9,7 +9,6 @@ from datetime import UTC, date, datetime, timedelta
 from urllib.parse import urlsplit
 
 import anthropic
-import httpx2
 from anthropic.types import Message
 
 from trampo.ats import AtsClient, BoardNotFound
@@ -62,14 +61,14 @@ def board_refs_from_urls(urls: Iterable[str]) -> set[BoardRef]:
 
 def discovery_queries(config: Config) -> list[str]:
     """A deterministic, duplicate-free list of `site:` search queries: every
-    combination of ATS domain, Track title keyword (config order) and remote
-    term."""
+    combination of remote term, Track title keyword (config order) and ATS
+    domain. The domain varies fastest, so the first days cover every ATS."""
     keywords = [kw for track in config.tracks for kw in track.title_keywords]
     queries: list[str] = []
     seen: set[str] = set()
     for term in _REMOTE_TERMS:
-        for domain in _QUERY_DOMAINS:
-            for keyword in keywords:
+        for keyword in keywords:
+            for domain in _QUERY_DOMAINS:
                 query = f'site:{domain} "{keyword}" {term}'
                 if query not in seen:
                     seen.add(query)
@@ -116,7 +115,8 @@ def discover(
     ordered = [q for q in queries if q not in recent] + [q for q in queries if q in recent]
 
     prompt = load_prompt("discovery")
-    known = store.known_boards()
+    # Only active Boards are skipped: one a 404 deactivated is validated again.
+    known = {board for board, _ in store.active_boards()}
     added: list[BoardRef] = []
 
     for query in ordered[:quota]:
@@ -146,10 +146,13 @@ def discover(
                 ats_clients[ref.ats].fetch_postings(ref.slug, company)
             except BoardNotFound:
                 continue
-            except httpx2.HTTPError:
-                logger.warning("Discovery: %s/%s failed validation", ref.ats, ref.slug)
+            except Exception:  # an outage or an odd response: skip this Board only
+                logger.warning(
+                    "Discovery: %s/%s failed validation", ref.ats, ref.slug, exc_info=True
+                )
                 continue
-            store.add_board(ref, company, datetime.now(UTC))
+            if not store.add_board(ref, company, datetime.now(UTC)):
+                store.activate_board(ref)  # known but inactive: it exists again
             known.add(ref)
             added.append(ref)
 

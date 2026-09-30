@@ -174,6 +174,8 @@ def test_jobs_to_judge_skips_jobs_in_open_batches(db_path: Path) -> None:
     closed_job = store.create_job("Acme", "Data Engineer", "data engineer", run_id, NOW)
 
     store.add_batch("batch-1", "judge", run_id, [batched_job], "claude-opus-5", "abc123def456", NOW)
+    store.upsert_posting(_posting(board_slug="other", posting_id="open-1"), pending_job, NOW)
+    store.upsert_posting(_posting(board_slug="other", posting_id="open-2"), batched_job, NOW)
 
     # a closed job keeps verdict=pending but must not be sent to judging
     store.upsert_posting(_posting(board_slug="acme", posting_id="closed-1"), closed_job, NOW)
@@ -187,6 +189,66 @@ def test_jobs_to_judge_skips_jobs_in_open_batches(db_path: Path) -> None:
     assert to_judge == {pending_job}
     # a batch keeps the model and prompt it was submitted with (Task 14, Ruling R9)
     assert open_batches == [("batch-1", [batched_job], "claude-opus-5", "abc123def456")]
+
+
+def test_jobs_to_judge_skips_jobs_without_postings(db_path: Path) -> None:
+    """A Job left without Postings (e.g. the process died between creating it and
+    storing its Posting) can't be judged, and must not break every later Run."""
+    store = Store(db_path)
+    run_id = store.start_run(NOW)
+    with_posting = store.create_job("Acme", "Backend Engineer", "backend engineer", run_id, NOW)
+    store.create_job("Acme", "SRE", "sre", run_id, NOW)  # no Posting
+    store.upsert_posting(_posting(), with_posting, NOW)
+
+    to_judge = [jwp.job.id for jwp in store.jobs_to_judge()]
+    store.close()
+
+    assert to_judge == [with_posting]
+
+
+def test_reopen_resets_only_the_code_made_closed_rejection(db_path: Path) -> None:
+    store = Store(db_path)
+    run_id = store.start_run(NOW)
+    code_rejected = store.create_job("Acme", "Backend Engineer", "backend engineer", run_id, NOW)
+    overridden = store.create_job("Acme", "SRE", "sre", run_id, NOW)
+    claude_rejected = store.create_job("Acme", "Data Engineer", "data engineer", run_id, NOW)
+    postings = {
+        code_rejected: _posting(posting_id="c1"),
+        overridden: _posting(posting_id="c2"),
+        claude_rejected: _posting(posting_id="c3"),
+    }
+    for job_id, posting in postings.items():
+        store.upsert_posting(posting, job_id, NOW)
+    store.override_verdict(overridden, "rejected", "vaga encerrada", NOW)
+    store.save_judgment(
+        claude_rejected,
+        Judgment(
+            track="backend",
+            verdict="rejected",
+            reason="vaga encerrada",
+            remote=True,
+            open_to_brazil=True,
+            requires_us_work_authorization=False,
+            fit_score=5,
+            fit_reason="ok",
+            job_language="en",
+        ),
+        "model-x",
+        "abcdef123456",
+    )
+    store.close_missing_postings(BoardRef(ats="greenhouse", slug="acme"), set(), NOW)
+    store.close_jobs_without_open_postings(NOW)
+    store.reject_closed_pending("vaga encerrada")
+
+    later = NOW + timedelta(days=1)
+    for job_id, posting in postings.items():  # the Postings reappear
+        store.upsert_posting(posting, job_id, later)
+    verdicts = {j.id: (j.verdict, j.verdict_reason) for j in store.list_jobs()}
+    store.close()
+
+    assert verdicts[code_rejected] == ("pending", None)  # judged on the next Run
+    assert verdicts[overridden] == ("rejected", "vaga encerrada")
+    assert verdicts[claude_rejected] == ("rejected", "vaga encerrada")
 
 
 def test_override_records_from_and_to(db_path: Path) -> None:
@@ -267,20 +329,6 @@ def test_reject_closed_pending(db_path: Path) -> None:
     assert verdicts[pending_closed] == "rejected"
     assert verdicts[eligible_closed] == "eligible"
     assert verdicts[pending_open] == "pending"
-
-
-def test_known_boards_includes_inactive(db_path: Path) -> None:
-    store = Store(db_path)
-    active = BoardRef(ats="greenhouse", slug="acme")
-    inactive = BoardRef(ats="lever", slug="foo")
-    store.add_board(active, "Acme", NOW)
-    store.add_board(inactive, "Foo", NOW)
-    store.deactivate_board(inactive)
-
-    known = store.known_boards()
-    store.close()
-
-    assert known == {active, inactive}
 
 
 def test_backup_to_while_open(db_path: Path, tmp_path: Path) -> None:

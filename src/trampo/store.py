@@ -23,6 +23,9 @@ from trampo.models import (
     VerdictValue,
 )
 
+# The code-made Verdict reason for a Job closed before it was judged (pt-BR, shown on the page).
+CLOSED_REASON = "vaga encerrada"
+
 
 def _to_iso(value: datetime) -> str:
     if value.tzinfo is None:
@@ -95,16 +98,17 @@ class Store:
         rows = self._conn.execute("SELECT ats, slug, company FROM boards WHERE active = 1")
         return [(BoardRef(ats=r["ats"], slug=r["slug"]), r["company"]) for r in rows]
 
-    def known_boards(self) -> set[BoardRef]:
-        """Every Board ever added, active or not — Discovery never re-validates or
-        re-adds one of these."""
-        rows = self._conn.execute("SELECT ats, slug FROM boards")
-        return {BoardRef(ats=r["ats"], slug=r["slug"]) for r in rows}
-
     def deactivate_board(self, board: BoardRef) -> None:
         with self._conn:
             self._conn.execute(
                 "UPDATE boards SET active = 0 WHERE ats = ? AND slug = ?",
+                (board.ats, board.slug),
+            )
+
+    def activate_board(self, board: BoardRef) -> None:
+        with self._conn:
+            self._conn.execute(
+                "UPDATE boards SET active = 1 WHERE ats = ? AND slug = ?",
                 (board.ats, board.slug),
             )
 
@@ -189,6 +193,17 @@ class Store:
             ).fetchone()
             assert row is not None
             self._conn.execute("UPDATE jobs SET closed_at = NULL WHERE id = ?", (row["job_id"],))
+            # A reopened Job that code rejected as closed gets judged; a Verdict Claude
+            # (judged_model_id) or the Candidate (an Override) set is never touched.
+            self._conn.execute(
+                """
+                UPDATE jobs SET verdict = 'pending', verdict_reason = NULL
+                WHERE id = ? AND verdict = 'rejected' AND verdict_reason = ?
+                  AND judged_model_id IS NULL
+                  AND NOT EXISTS (SELECT 1 FROM overrides o WHERE o.job_id = jobs.id)
+                """,
+                (row["job_id"], CLOSED_REASON),
+            )
 
     def close_missing_postings(self, board: BoardRef, seen_ids: set[str], now: datetime) -> None:
         with self._conn:
@@ -243,8 +258,10 @@ class Store:
         open_job_ids: set[int] = set()
         for _, job_ids, _, _ in self.open_batches("judge"):
             open_job_ids.update(job_ids)
+        # A Job without Postings can't be judged (judge.format_job reads its latest one).
         rows = self._conn.execute(
-            "SELECT id FROM jobs WHERE verdict = 'pending' AND closed_at IS NULL ORDER BY id"
+            "SELECT id FROM jobs WHERE verdict = 'pending' AND closed_at IS NULL "
+            "AND EXISTS (SELECT 1 FROM postings p WHERE p.job_id = jobs.id) ORDER BY id"
         ).fetchall()
         return [self.job(r["id"]) for r in rows if r["id"] not in open_job_ids]
 
@@ -348,9 +365,10 @@ class Store:
         salary = next(
             (posting.salary for _, posting in by_recency if posting.salary is not None), None
         )
+        # An undated Job shows the day a Run first saw it (docs/product.md, Eligibility).
+        dates = [posting.published_at for posting in postings if posting.published_at is not None]
         published_at = min(
-            (posting.published_at for posting in postings if posting.published_at is not None),
-            default=None,
+            dates or [_from_iso(r["first_seen_at"]) for r in posting_rows], default=None
         )
         job_row = JobRow(
             id=row["id"],
@@ -510,5 +528,8 @@ class Store:
         dest_conn = sqlite3.connect(dest)
         try:
             self._conn.backup(dest_conn)
+            # The copy inherits WAL mode, which needs -wal/-shm files and shared
+            # memory: unreliable on a cloud-synced /mnt/c folder.
+            dest_conn.execute("PRAGMA journal_mode = DELETE")
         finally:
             dest_conn.close()

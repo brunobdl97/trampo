@@ -2,9 +2,12 @@
 online backup API) to a destination folder, excluding .env and the WAL side
 files. tests/test_pipeline.py covers the Run-level skip/failure behavior."""
 
+import shutil
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
+
+import pytest
 
 from trampo.backup import backup_private
 from trampo.config import private_paths
@@ -58,6 +61,42 @@ def test_db_copy_readable_while_open(tmp_path: Path) -> None:
     finally:
         conn.close()
     store.close()
+
+
+def test_db_copy_is_a_rollback_journal_file(tmp_path: Path) -> None:
+    """A WAL copy needs -wal/-shm and shared memory, unreliable on a cloud-synced
+    /mnt/c folder: the copy must be a plain rollback-journal database."""
+    private = _private(tmp_path)
+    paths = private_paths({"TRAMPO_PRIVATE_DIR": str(private)})
+    store = Store(paths.db)
+    dest = tmp_path / "backup"
+
+    backup_private(paths, store, dest)
+    store.close()
+
+    conn = sqlite3.connect(dest / "trampo.db")
+    try:
+        (mode,) = conn.execute("PRAGMA journal_mode").fetchone()
+    finally:
+        conn.close()
+    assert mode == "delete"
+
+
+def test_db_copied_even_if_file_copy_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    private = _private(tmp_path)
+    paths = private_paths({"TRAMPO_PRIVATE_DIR": str(private)})
+    store = Store(paths.db)
+    dest = tmp_path / "backup"
+
+    def copytree(*args: object, **kwargs: object) -> None:
+        raise OSError("a synced file is locked")
+
+    monkeypatch.setattr(shutil, "copytree", copytree)
+    with pytest.raises(OSError):
+        backup_private(paths, store, dest)
+    store.close()
+
+    assert (dest / "trampo.db").exists()
 
 
 def test_env_excluded(tmp_path: Path) -> None:

@@ -6,12 +6,12 @@ from typing import Any
 
 import httpx2
 
-from trampo.config import TrackId
 from trampo.models import JobRow
 
 TELEGRAM_LIMIT = 4096
 
-_TRACK_LABELS: dict[TrackId, str] = {"backend": "Backend", "agents": "Agentes/Automação"}
+# pt-BR Track labels, shared with the web page.
+TRACK_LABELS: dict[str, str] = {"backend": "Backend", "agents": "Agentes/Automação"}
 
 _TELEGRAM_API = "https://api.telegram.org"
 
@@ -36,7 +36,7 @@ def _fit_escaped(raw: str, available: int) -> str:
 def _job_line(job: JobRow) -> str:
     company = html.escape(job.company, quote=True)
     url = html.escape(job.urls[0], quote=True)
-    track_label = _TRACK_LABELS[job.track] if job.track is not None else "—"
+    track_label = TRACK_LABELS[job.track] if job.track is not None else "—"
     fit = job.fit_score if job.fit_score is not None else "–"
     title = html.escape(job.title, quote=True)
     line = f'• <b>{company}</b> — <a href="{url}">{title}</a> · {track_label} · Fit {fit}/10'
