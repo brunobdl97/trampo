@@ -14,9 +14,10 @@ import httpx2
 import uvicorn
 
 from trampo.ats import client_for
-from trampo.claude import SpendLimitReached, make_client
+from trampo.claude import SpendLimitReached, load_prompt, make_client, newest_opus
 from trampo.config import Paths, load_config, load_profile, private_paths
 from trampo.digest import Telegram, format_failure
+from trampo.evaluate import EvalReport, evaluate
 from trampo.pipeline import RunContext, run, send_alert
 from trampo.resume import load_resume
 from trampo.resume.render import html_to_pdf, render_html
@@ -40,6 +41,10 @@ def build_parser() -> argparse.ArgumentParser:
     resume_parser.add_argument("--lang", choices=["en", "pt"], default="en")
     serve_parser = commands.add_parser("serve", help="local Job page (UI in pt-BR), 127.0.0.1 only")
     serve_parser.add_argument("--port", type=int, default=8765)
+    eval_parser = commands.add_parser(
+        "eval", help="re-judge every overridden Job, compare to the Candidate's Overrides"
+    )
+    eval_parser.add_argument("--yes", action="store_true", help="skip the confirmation prompt")
     return parser
 
 
@@ -179,6 +184,59 @@ def _serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_eval_report(report: EvalReport, model: str, prompt_hash: str) -> None:
+    pct = 100 * report.agree / report.total if report.total else 0.0
+    print(f"Agreement: {report.agree}/{report.total} ({pct:.0f}%)")
+    print("Confusion (override verdict -> judge verdict): count")
+    for (expected, got), count in sorted(report.confusion.items()):
+        print(f"  {expected} -> {got}: {count}")
+    print("Disagreements:")
+    for job_id, expected, got in report.disagreements:
+        print(f"  Job {job_id}: expected {expected}, got {got}")
+    print(f"Model: {model}")
+    print(f"Prompt hash: {prompt_hash}")
+
+
+def _eval(args: argparse.Namespace) -> int:
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("trampo eval: missing ANTHROPIC_API_KEY (private/.env)", file=sys.stderr)
+        return 2
+
+    paths = private_paths()
+    store = Store(paths.db)
+    try:
+        overrides = store.overridden_jobs()
+        if not overrides:
+            print("trampo eval: no Overrides to evaluate")
+            return 0
+
+        print(f"trampo eval: {len(overrides)} API calls will be made (this costs money).")
+        if not args.yes:
+            try:
+                answer = input("Continue? [y/N] ")
+            except EOFError:  # stdin closed/exhausted (cron, CI, `< /dev/null`): decline
+                print("\nAborted.")
+                return 0
+            if answer.strip().lower() not in ("y", "yes"):
+                return 0
+
+        config = load_config()
+        profile = load_profile(paths.profile_toml)
+        resume = load_resume(paths.resume_json)
+        claude = make_client()
+        model = newest_opus(claude)
+        prompt_hash = load_prompt("judge").hash
+
+        report = evaluate(claude, store, config, profile, resume, model)
+        _print_eval_report(report, model, prompt_hash)
+    except SpendLimitReached:
+        print("trampo eval: Anthropic spend limit reached", file=sys.stderr)
+        return 1
+    finally:
+        store.close()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -188,6 +246,8 @@ def main(argv: list[str] | None = None) -> int:
         return _resume(args)
     if args.command == "serve":
         return _serve(args)
+    if args.command == "eval":
+        return _eval(args)
     parser.print_help()
     return 1
 

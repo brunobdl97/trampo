@@ -775,8 +775,8 @@ def evaluate(client: anthropic.Anthropic, store: Store, config: Config, profile:
 
 It re-judges every overridden Job with the current prompt and model (regular calls) and compares the result to the Override's `to_verdict`. CLI: `trampo eval [--yes]` prints how many calls it will make and asks for confirmation (it costs money) unless `--yes`; then prints the agreement rate, the confusion table, the disagreements, the model ID and the prompt hash.
 
-- [ ] Tests first: `test_agreement_rate`, `test_confusion_counts`, `test_no_overrides_is_empty_report`, `test_cli_asks_confirmation`.
-- [ ] Implement; green checks; commit `feat(eval): measure the judge against Overrides`.
+- [x] Tests first: `test_agreement_rate`, `test_confusion_counts`, `test_no_overrides_is_empty_report`, `test_cli_asks_confirmation`.
+- [x] Implement; green checks; commit `feat(eval): measure the judge against Overrides`.
 
 ### Task 20: Go-live 👤
 
