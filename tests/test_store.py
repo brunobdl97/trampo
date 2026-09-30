@@ -265,6 +265,20 @@ def test_reject_closed_pending(db_path: Path) -> None:
     assert verdicts[pending_open] == "pending"
 
 
+def test_known_boards_includes_inactive(db_path: Path) -> None:
+    store = Store(db_path)
+    active = BoardRef(ats="greenhouse", slug="acme")
+    inactive = BoardRef(ats="lever", slug="foo")
+    store.add_board(active, "Acme", NOW)
+    store.add_board(inactive, "Foo", NOW)
+    store.deactivate_board(inactive)
+
+    known = store.known_boards()
+    store.close()
+
+    assert known == {active, inactive}
+
+
 def test_backup_to_while_open(db_path: Path, tmp_path: Path) -> None:
     store = Store(db_path)
     run_id = store.start_run(NOW)

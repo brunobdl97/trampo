@@ -570,12 +570,12 @@ def discover(client: anthropic.Anthropic, store: Store, config: Config,
 - `discovery_queries`: a deterministic list combining each ATS `site:` domain with each Track keyword and a remote term (`remote`, `LATAM`, `Brazil`).
 - `discover`: runs `discovery_max_searches_per_day - store.discovery_searches_on(today)` searches, preferring queries not used in the last 14 days. Each search is one Messages call with the web search tool restricted by `allowed_domains` to the ATS domains and `max_uses=1`. URLs are read from the tool result blocks (the model's text is ignored). Every search is logged. Each new BoardRef is validated with `fetch_postings` (`BoardNotFound` → skip) and added with a company name derived from the slug ("acme-corp" → "Acme Corp").
 
-- [ ] Tests first:
+- [x] Tests first:
   - `test_board_refs_from_urls` — all four patterns, junk URLs ignored, duplicates collapsed.
   - `test_respects_daily_quota` — 8 searches already logged today → exactly 2 calls.
   - `test_invalid_board_not_added`.
   - `test_known_board_not_duplicated`.
-- [ ] Implement; green checks; commit `feat(discovery): find Boards via web search`.
+- [x] Implement; green checks; commit `feat(discovery): find Boards via web search`.
 
 ### Task 13: Digest and Telegram
 

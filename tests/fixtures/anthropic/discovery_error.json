@@ -1,0 +1,25 @@
+{
+  "id": "msg_disc_error",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-5",
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "content": [
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_error",
+      "name": "web_search",
+      "input": {"query": "site:jobs.ashbyhq.com \"backend\" remote"}
+    },
+    {
+      "type": "web_search_tool_result",
+      "tool_use_id": "srvtoolu_error",
+      "content": {
+        "type": "web_search_tool_result_error",
+        "error_code": "max_uses_exceeded"
+      }
+    }
+  ],
+  "usage": {"input_tokens": 100, "output_tokens": 50}
+}

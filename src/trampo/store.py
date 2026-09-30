@@ -87,6 +87,12 @@ class Store:
         rows = self._conn.execute("SELECT ats, slug, company FROM boards WHERE active = 1")
         return [(BoardRef(ats=r["ats"], slug=r["slug"]), r["company"]) for r in rows]
 
+    def known_boards(self) -> set[BoardRef]:
+        """Every Board ever added, active or not — Discovery never re-validates or
+        re-adds one of these."""
+        rows = self._conn.execute("SELECT ats, slug FROM boards")
+        return {BoardRef(ats=r["ats"], slug=r["slug"]) for r in rows}
+
     def deactivate_board(self, board: BoardRef) -> None:
         with self._conn:
             self._conn.execute(
