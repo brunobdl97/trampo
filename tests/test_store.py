@@ -331,6 +331,46 @@ def test_reject_closed_pending(db_path: Path) -> None:
     assert verdicts[pending_open] == "pending"
 
 
+def test_dismiss_discarded(db_path: Path) -> None:
+    store = Store(db_path)
+    run_id = store.start_run(NOW)
+    ids = {
+        name: store.create_job("Acme", name, name.lower(), run_id, NOW)
+        for name in ("Rejected", "Fit4", "Fit5", "Pending", "Seen", "Rescued")
+    }
+    fit = {"Fit4": 4, "Fit5": 5, "Seen": 2, "Rescued": 3}
+    for name, score in fit.items():
+        judgment = Judgment(
+            track="backend",
+            verdict="eligible",
+            reason="ok",
+            remote=True,
+            open_to_brazil=True,
+            requires_us_work_authorization=False,
+            fit_score=score,
+            fit_reason="fit",
+            job_language="en",
+        )
+        store.save_judgment(ids[name], judgment, "model-x", "abcdef123456")
+    store.set_verdict(ids["Rejected"], "rejected", "US only")
+    store.set_status(ids["Seen"], "seen")
+    store.override_verdict(ids["Rescued"], "eligible", "candidate wants it", NOW)
+
+    count = store.dismiss_discarded(max_fit_score=4)
+    statuses = {j.title: j.status for j in store.list_jobs()}
+    store.close()
+
+    assert count == 2
+    assert statuses == {
+        "Rejected": "dismissed",
+        "Fit4": "dismissed",
+        "Fit5": "new",
+        "Pending": "new",
+        "Seen": "seen",
+        "Rescued": "new",
+    }
+
+
 def test_backup_to_while_open(db_path: Path, tmp_path: Path) -> None:
     store = Store(db_path)
     run_id = store.start_run(NOW)

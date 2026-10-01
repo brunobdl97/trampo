@@ -50,13 +50,15 @@ Every Job is assigned to one Track. The Fit score is relative to that Track, and
 - Require US work authorization.
 - Are hybrid or on-site.
 - Restrict location to countries the Candidate can't work from ("US only", "EU only", "must reside in…").
+- Are remote but name only regions that exclude Brazil ("Remote (US)", "Remote - EMEA"…), even without mentioning work authorization.
+- Are at a company headquartered in India or hiring through an Indian entity, or require living in India or working IST — even when open worldwide or to LATAM.
 - Publish a salary range below the Salary floor.
 - Are "Automation Engineer" in the QA/test-automation sense (the title is ambiguous; Claude decides from the description).
 
 **Verdict** values:
 
 - `eligible` — passes every rule;
-- `needs_review` — ambiguous, the Candidate decides (e.g. "LATAM preferred", EU time zone required, "Remote (US)" without saying whether work authorization is needed, unclear EOR/Deel hiring);
+- `needs_review` — ambiguous, the Candidate decides (e.g. "LATAM preferred", EU time zone required, "Remote" with no region at all, unclear EOR/Deel hiring);
 - `rejected` — always with the reason, so the Candidate can audit the rules;
 - `pending` — not judged yet (e.g. the spend cap was hit).
 
@@ -101,7 +103,7 @@ Every Job is assigned to one Track. The Fit score is relative to that Track, and
 - **Local web page** (HTMX, UI in Portuguese) with:
   - company, title, Track, Posting link, locations/workplace, publish date, salary range when published;
   - Verdict with reason and Fit score;
-  - Status set by the Candidate: `new` → `seen` → `applied` → `dismissed` (in phase 1, `applied` is set by hand);
+  - Status set by the Candidate: `new` → `seen` → `applied` → `dismissed` (in phase 1, `applied` is set by hand); each Run also dismisses `new` Jobs that are `rejected` or have a Fit score ≤ 4 (adjustable), except Jobs with an Override;
   - free-text notes per Job;
   - link to the Tailored resume when it exists, and a button to generate one on demand;
   - highlight of Jobs that are new since the last visit;

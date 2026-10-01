@@ -49,6 +49,7 @@ def _config(*, searches_per_day: int = 10, tracks: list[Track] | None = None) ->
         repost_days=30,
         discovery_max_searches_per_day=searches_per_day,
         auto_resume_min_fit_score=8,
+        auto_dismiss_max_fit_score=4,
         ignore_title_keywords=[],
         tracks=tracks
         if tracks is not None

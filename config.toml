@@ -2,6 +2,7 @@ max_age_days = 7
 repost_days = 30
 discovery_max_searches_per_day = 10
 auto_resume_min_fit_score = 8
+auto_dismiss_max_fit_score = 4
 ignore_title_keywords = ["frontend", "mobile", "ios", "android", "data scientist", "manager", "intern", "junior"]
 
 [[tracks]]

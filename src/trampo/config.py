@@ -26,6 +26,7 @@ class Config(BaseModel):
     repost_days: int
     discovery_max_searches_per_day: int
     auto_resume_min_fit_score: int
+    auto_dismiss_max_fit_score: int
     ignore_title_keywords: list[str]
     tracks: list[Track]
 

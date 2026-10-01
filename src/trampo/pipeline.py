@@ -1,7 +1,7 @@
 """The daily Run: resolve the newest Opus, recover in-flight batches,
 Discovery, collect Postings from every Board, pre-filter, dedupe into Jobs,
-close/reject, judge through the Batch API, send the Digest, automatic Tailored
-resumes through a second batch, record the Run.
+close/reject, judge through the Batch API, dismiss discarded Jobs, send the
+Digest, automatic Tailored resumes through a second batch, record the Run.
 
 Failure modes handled here (backlog.md, Review Focus): an ATS outage never
 closes that Board's Postings; the spend limit skips the remaining Claude steps
@@ -79,6 +79,7 @@ class RunSummary:
     needs_review: int = 0
     rejected: int = 0
     pending: int = 0  # Jobs still pending and open at the end of the Run
+    dismissed: int = 0  # Jobs this Run set to dismissed (rejected or low Fit score)
     board_errors: int = 0
 
 
@@ -115,11 +116,14 @@ def run(ctx: RunContext) -> RunSummary:
             logger.warning("Spend limit reached, judging skipped: %s", spend_limit)
             send_alert(ctx.telegram, format_spend_cap_alert(ctx.store.pending_open_count()))
 
-        # 8. Digest: every still-open Job that became eligible this Run, recovered
-        # batches included (a recovered Job may have closed at step 6).
+        # 7a. Dismiss untouched Jobs that are rejected or at/below the Fit-score threshold.
+        summary.dismissed = ctx.store.dismiss_discarded(ctx.config.auto_dismiss_max_fit_score)
+
+        # 8. Digest: every still-open, not dismissed Job that became eligible this
+        # Run, recovered batches included (a recovered Job may have closed at step 6).
         _tally(summary, judged)
         jobs = [ctx.store.job(job_id).job for job_id, v in judged.items() if v == "eligible"]
-        eligible = [job for job in jobs if job.closed_at is None]
+        eligible = [job for job in jobs if job.closed_at is None and job.status != "dismissed"]
         # A Telegram failure is logged and the Run goes on (Tailored resumes, backup).
         if eligible:
             for message in format_digest(eligible, summary.needs_review, summary.rejected):

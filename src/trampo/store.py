@@ -246,6 +246,19 @@ class Store:
             )
         return cur.rowcount
 
+    def dismiss_discarded(self, max_fit_score: int) -> int:
+        """Dismiss every untouched (`new`) Job that is rejected or at/below
+        max_fit_score. Overridden Jobs are the Candidate's call and never
+        swept. Idempotent, so it also sweeps Jobs judged before this rule."""
+        with self._conn:
+            cur = self._conn.execute(
+                "UPDATE jobs SET status = 'dismissed' "
+                "WHERE status = 'new' AND (verdict = 'rejected' OR fit_score <= ?) "
+                "AND id NOT IN (SELECT job_id FROM overrides)",
+                (max_fit_score,),
+            )
+        return cur.rowcount
+
     def pending_open_count(self) -> int:
         """Jobs still waiting for a Verdict that are open on their ATS."""
         row = self._conn.execute(

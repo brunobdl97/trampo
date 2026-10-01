@@ -30,9 +30,8 @@ Decide the `verdict`:
 
 - `eligible` — passes every rule below.
 - `needs_review` — ambiguous; the Candidate decides. Examples: "LATAM
-  preferred" (not required), an EU time zone requirement, "Remote (US)"
-  without saying whether work authorization is needed, an unclear EOR/Deel
-  hiring arrangement.
+  preferred" (not required), an EU time zone requirement, "Remote" with no
+  region or country at all, an unclear EOR/Deel hiring arrangement.
 - `rejected` — fails a rule below; always explain which one in `reason`, so
   the Candidate can audit the decision.
 - `pending` — not a value you ever return; it means the Job has not been
@@ -50,6 +49,14 @@ Reject Jobs that:
 - Are hybrid or on-site.
 - Restrict location to countries the Candidate can't work from ("US only",
   "EU only", "must reside in…").
+- Are remote but name only regions that exclude Brazil — e.g. "Remote (US)",
+  "Remote (Canada)", "Remote - EMEA", "Remote (Europe)" — even when work
+  authorization is not mentioned. A remote Job is open to Brazil only when it
+  names Brazil, LATAM / Latin America / South America, the Americas, or
+  worldwide / anywhere.
+- Are at a company headquartered in India or hiring through an entity in
+  India, or require living in India or working India's time zone (IST) —
+  even when the Job is open worldwide or to LATAM.
 - Publish a salary range below the Salary floor (see below).
 - Are "Automation Engineer" in the QA/test-automation sense — the title
   alone is ambiguous; decide from the description whether the role is

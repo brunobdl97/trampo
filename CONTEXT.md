@@ -44,7 +44,7 @@ The agent's eligibility decision on a Job — `pending`, `eligible`, `needs_revi
 _Avoid_: result, classification, "discarded"
 
 **Status**:
-The Candidate's own progress on a Job — `new`, `seen`, `applied` or `dismissed`.
+The Candidate's own progress on a Job — `new`, `seen`, `applied` or `dismissed`. A Run also sets `dismissed` on untouched (`new`) Jobs that are `rejected` or at or below the Fit-score threshold.
 _Avoid_: state, "discarded"
 
 **Override**:

@@ -19,6 +19,7 @@ def test_missing_field_names_it(tmp_path: Path) -> None:
 max_age_days = 7
 discovery_max_searches_per_day = 10
 auto_resume_min_fit_score = 8
+auto_dismiss_max_fit_score = 4
 ignore_title_keywords = []
 tracks = []
 """)

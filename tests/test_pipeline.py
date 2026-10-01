@@ -545,6 +545,26 @@ def test_digest_send_failure_does_not_stop_the_run(
     assert outcome == "ok"
 
 
+def test_discarded_jobs_are_dismissed_and_left_out_of_the_digest(
+    ctx: RunContext, fakes: _Fakes
+) -> None:
+    _add_acme(ctx, fakes)
+    _add_board(ctx, fakes, "globex", "Globex", GLOBEX_POSTING, "Senior Backend Engineer")
+    fakes.judgments = {  # GitLab: eligible at Fit score 7
+        "Acme": _succeeded({**ELIGIBLE, "verdict": "rejected", "reason": "Só EUA."}),
+        "Globex": _succeeded({**ELIGIBLE, "fit_score": 4}),
+    }
+
+    summary = run(ctx)
+
+    gitlab, acme, globex = (
+        ctx.store.job(_job_id(ctx, p)).job for p in (GITLAB_POSTING, ACME_POSTING, GLOBEX_POSTING)
+    )
+    assert (gitlab.status, acme.status, globex.status) == ("new", "dismissed", "dismissed")
+    assert summary.dismissed == 2
+    assert fakes.sent == format_digest([gitlab], needs_review=0, rejected=1)
+
+
 def test_auto_only_for_eligible_at_threshold(ctx: RunContext, fakes: _Fakes) -> None:
     _add_acme(ctx, fakes)
     _add_board(ctx, fakes, "globex", "Globex", GLOBEX_POSTING, "Senior Backend Engineer")
